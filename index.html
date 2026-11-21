@@ -65,6 +65,9 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .agregar{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;font-weight:800;color:var(--azul);text-decoration:none;
            background:#eef3f8;border-radius:20px;padding:6px 12px}
   .agregar svg{width:15px;height:15px}
+  .minombre{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--linea);border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px;color:var(--suave)}
+  .minombre b{color:var(--gris)}
+  .minombre button{border:0;background:#eef3f8;color:var(--azul);font-weight:800;border-radius:20px;padding:6px 12px;font-size:13px}
   .anuncio{display:flex;gap:12px;align-items:flex-start;background:#FFF9E3;border:1px solid #F1DF97;border-radius:14px;padding:12px 14px;margin-top:12px}
   .anuncio .ic{flex:0 0 30px;height:30px;border-radius:50%;background:var(--amarillo);color:#fff;display:flex;align-items:center;justify-content:center}
   .anuncio .ic svg{width:16px;height:16px}
@@ -143,7 +146,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
 
   /* ---------- formularios */
   label{display:block;font-size:12px;font-weight:800;color:var(--gris);margin:14px 0 6px;letter-spacing:.02em}
-  input,select,textarea{width:100%;padding:12px;border:1px solid #ddd6cb;border-radius:10px;background:#fff;color:#333}
+  input,select,textarea{font-size:16px!important;width:100%;padding:12px;border:1px solid #ddd6cb;border-radius:10px;background:#fff;color:#333}
   textarea{min-height:70px;resize:vertical}
   .fila{display:flex;gap:10px}.fila>div{flex:1}
   .boton{display:block;width:100%;border:0;border-radius:12px;padding:14px;font-weight:800;color:#fff;background:var(--naranja);margin-top:18px}
@@ -285,6 +288,8 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
         <input id="clave1" type="password" autocomplete="new-password" placeholder="La que tú quieras">
         <label for="clave2">REPÍTELA</label>
         <input id="clave2" type="password" autocomplete="new-password" placeholder="Otra vez">
+        <label for="nombreNuevo">¿CÓMO QUIERES QUE TE LLAMEMOS? (OPCIONAL)</label>
+        <input id="nombreNuevo" autocomplete="given-name" maxlength="30" placeholder="Ej: Cristian">
         <button class="boton" id="btnCrear">Guardar clave y entrar</button>
         <a href="#" class="otro" data-otro>Usar otro correo</a>
       </div>
@@ -398,7 +403,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     document.querySelectorAll('.soloPublico').forEach(b=>b.classList.toggle('oculto',lider));
     const verGeneral=lider||(info.publico&&usuario);
     document.querySelectorAll('[data-t=tInicio],[data-t=tCalendario],[data-t=tPlan]').forEach(b=>b.classList.toggle('oculto',!verGeneral));
-    $('uCorreo').textContent=lider?usuario.email:'';
+    $('uCorreo').textContent=lider?(usuario.nombre||usuario.email):'';
     $('btnSalir').classList.toggle('oculto',!lider);
     vistaMes=null;
   }
@@ -406,7 +411,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   // ---------- inicio (lo que ve cualquier persona)
   async function verInicio(datos){
     const box=$('tInicio'), k='c_prox_'+quien();
-    const hero=`<div class="hero"><small>${esc(info.sede||'Sede Buenavista')}</small><h1>${esLider()?'Hola, '+esc(usuario.email.split('@')[0]):'Bienvenido a casa'}</h1>
+    const hero=`<div class="hero"><small>${esc(info.sede||'Sede Buenavista')}</small><h1>${esLider()&&usuario.nombre?'Hola, '+esc(usuario.nombre):'Bienvenido a casa'}</h1>
       <p>${esc(info.iglesia||'Iglesia Alianza Cristiana y Misionera Colombiana')}. Aquí está todo lo que viene en nuestra iglesia.</p></div>`;
     const previo=datos||leerJ(k);
     if(previo&&previo.ok) pintar(previo); else box.innerHTML=hero+'<div class="vacio">Cargando…</div>';
@@ -423,6 +428,8 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
           <div class="col"><div class="eti">${esc(faltan(sig.fecha))} · Próxima actividad</div><div class="tit">${esc(sig.titulo)}</div>
           <div class="det">${detalle(sig)}</div>
           <a class="agregar" target="_blank" href="${esc(enlaceCalendario(sig))}">${ICO_CAL}Agregar a mi calendario</a></div></div>`; }
+      (r.anuncios||[]).forEach(a=>{ html+=`<div class="anuncio"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></div>
+        <div class="col">${a.titulo?`<b>${esc(a.titulo)}</b>`:''}${a.mensaje?`<p>${esc(a.mensaje)}</p>`:''}${a.enlace?`<a target="_blank" href="${esc(a.enlace)}">Ver más →</a>`:''}</div></div>` });
       html+='</div><div class="ini-l"><h3>'+(r.extendido?'Próximas actividades':'Lo que viene')+'</h3>';
       const porDia={}; evs.forEach(ev=>{ if(ev!==sig)(porDia[ev.fecha]=porDia[ev.fecha]||[]).push(ev) });
       const limite=clave(new Date(deClave(r.hoy).getTime()+21*864e5));
@@ -438,8 +445,6 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
         html+='</div></div>';
       });
       html+=`</div><div class="ini-b"><button class="boton sec" id="irCal">Ver el calendario completo</button>`;
-      (r.anuncios||[]).forEach(a=>{ html+=`<div class="anuncio"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></div>
-        <div class="col">${a.titulo?`<b>${esc(a.titulo)}</b>`:''}${a.mensaje?`<p>${esc(a.mensaje)}</p>`:''}${a.enlace?`<a target="_blank" href="${esc(a.enlace)}">Ver más →</a>`:''}</div></div>` });
       html+='</div></div>';
       box.innerHTML=html; $('irCal').onclick=()=>pestana('tCalendario');
     }
@@ -534,7 +539,8 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   async function pintarPanelDe(fuente){
     const box=$('tPanel');
     try{ const r=await fuente(); if(!revisar(r))return; if($('tPanel').classList.contains('oculto'))return;
-      let html='<h2>Mi ministerio</h2><p class="sub">Tu equipo y sus reuniones. Lo que el coordinador programa o cambia le llega a todo el equipo.</p>';
+      let html='<h2>Mi ministerio</h2><p class="sub">Tu equipo y sus reuniones. Lo que el coordinador programa o cambia le llega a todo el equipo.</p>'
+        +`<div class="minombre"><span>Tu nombre en la app: <b>${esc(usuario.nombre||'sin nombre')}</b></span><button id="btnNombre">${usuario.nombre?'Cambiar':'Poner nombre'}</button></div>`;
       if(!r.ministerios.length) html+='<div class="vacio">No perteneces a ningún ministerio todavía.</div>';
       html+='<div class="mins">';
       r.ministerios.forEach((m,i)=>{
@@ -556,6 +562,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       });
       html+='</div>';
       box.innerHTML=html;
+      $('btnNombre').onclick=cambiarNombre;
       const todas=[].concat(...r.ministerios.map(m=>m.reuniones));
       box.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotos(r.ministerios[+b.dataset.foto].nombre));
       box.querySelectorAll('[data-prog]').forEach(b=>b.onclick=()=>verFormulario(null,r.ministerios[+b.dataset.prog].nombre));
@@ -643,6 +650,19 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     $('ftVolver').onclick=()=>pestana('tPanel');
   }
 
+  function cambiarNombre(){
+    $('mTitulo').textContent='Tu nombre en la app';
+    $('mTexto').innerHTML='Así te saludará la app y así te verá tu equipo en Novedades.<input id="mNombre" maxlength="30" style="margin-top:12px" placeholder="Ej: Cristian" value="'+esc(usuario.nombre||'')+'">';
+    $('mSi').textContent='Guardar'; $('mSi').style.background='var(--naranja)'; $('mNo').textContent='Cancelar';
+    $('modal').classList.add('on'); setTimeout(()=>$('mNombre').focus(),50);
+    const cerrar=()=>{ $('modal').classList.remove('on'); $('mSi').textContent='Sí, cancelar'; $('mSi').style.background='var(--rojo)'; $('mNo').textContent='Volver' };
+    $('mNo').onclick=cerrar;
+    $('mSi').onclick=async()=>{ const n=$('mNombre').value; cerrar(); cargando(1);
+      try{ const r=await llamar('appGuardarNombre',token,n); if(!revisar(r))return; usuario=r.usuario;
+        guardarJ('c_arranque_'+token,{ok:true,info:info,usuario:usuario,token:token}); aplicarUsuario(); aviso(r.msg); verPanel() }
+      catch(e){aviso('Error: '+e.message,true)} finally{cargando(0)} };
+  }
+
   // ---------- novedades
   const ACC={'Subió fotos':['var(--naranja)','📷'],'Programó':['var(--oliva)','+'],'Cambió':['var(--azul)','✎'],'Reprogramó':['var(--azul)','↻'],'Canceló':['var(--rojo)','×'],'Equipo actualizado':['var(--amarillo)','★']};
   function hace(iso){ const d=new Date(iso), s=(Date.now()-d)/1000;
@@ -656,7 +676,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       let html=cab;
       if(!r.novedades.length) html+='<div class="vacio">Todavía no hay novedades.</div>';
       r.novedades.forEach(n=>{ const a=ACC[n.accion]||['var(--gris)','•'];
-        const quien=n.quien===usuario.email?'Tú':n.quien.split('@')[0];
+        const quien=n.quien===usuario.email?'Tú':(n.nombre||n.quien.split('@')[0]);
         html+=`<div class="nov"><div class="ico" style="--c:${a[0]}">${a[1]}</div><div class="col"><div class="txt"><b>${esc(quien)}</b> ${esc(n.accion.toLowerCase())} · <b>${esc(n.ministerio)}</b><br>${esc(n.detalle)}</div>
           <div class="cuando">${esc(hace(n.cuando))}</div></div></div>`; });
       box.innerHTML=html;
@@ -696,7 +716,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     if($('codigo').value.replace(/\D/g,'').length!==6){aviso('Escribe el código de 6 números',true);return}
     if($('clave1').value.length<6){aviso('La clave debe tener al menos 6 caracteres',true);return}
     if($('clave1').value!==$('clave2').value){aviso('Las dos claves no coinciden',true);return}
-    cargando(1); try{ const r=await llamar('appVerificarCodigo',correoPendiente,$('codigo').value,$('clave1').value); if(!revisar(r))return;
+    cargando(1); try{ const r=await llamar('appVerificarCodigo',correoPendiente,$('codigo').value,$('clave1').value,$('nombreNuevo').value); if(!revisar(r))return;
       aviso('¡Listo! Tu clave quedó guardada.'); listo(r) }
     catch(e){aviso('Error: '+e.message,true)}finally{cargando(0)}
   };
