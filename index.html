@@ -74,6 +74,20 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .agregar{display:inline-flex;align-items:center;gap:6px;margin-top:10px;font-size:13px;font-weight:800;color:var(--azul);text-decoration:none;
            background:#eef3f8;border-radius:20px;padding:6px 12px}
   .agregar svg{width:15px;height:15px}
+  .herr-acceso{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:linear-gradient(135deg,#fff8ee,#fff);border:1px solid #f1d7b8;border-radius:14px;padding:12px 14px;margin:0 0 16px;color:var(--gris)}
+  .herr-acceso span{font-size:24px}.herr-acceso div{flex:1}.herr-acceso b{display:block;font-size:15px}.herr-acceso small{color:var(--suave);font-size:12px}.herr-acceso i{font-style:normal;font-size:24px;color:var(--naranja)}
+  .herr-caja{background:#fff;border:1px solid var(--linea);border-radius:16px;padding:6px 16px 16px;margin-bottom:14px}
+  .herr-caja h3{margin:14px 0 10px;color:var(--gris)}
+  .herr-botones{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .herr-botones button{text-align:left;border:1px solid var(--linea);background:#faf7f1;border-radius:12px;padding:12px;color:var(--gris)}
+  .herr-botones b{display:block;font-size:14px}.herr-botones small{font-size:12px;color:var(--suave)}
+  .meses12{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+  .meses12 button{border:1px solid var(--linea);background:#fff;border-radius:10px;padding:9px 0;font-weight:800;color:var(--gris);font-size:13px}
+  .meses12 button.on{background:var(--gris);color:#fff;border-color:var(--gris)}
+  .herr-esp{display:flex;align-items:center;gap:14px;padding:16px}.herr-esp b{display:block}.herr-esp small{color:var(--suave)}
+  .piezas{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pieza img{width:100%;border-radius:10px;display:block;border:1px solid var(--linea)}
+  .pieza .acciones{gap:6px}.pieza .acciones button{padding:7px 2px;font-size:12px;min-width:0}
   .minombre{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#fff;border:1px solid var(--linea);border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:13px;color:var(--suave)}
   .minombre b{color:var(--gris)}
   .minombre button{border:0;background:#eef3f8;color:var(--azul);font-weight:800;border-radius:20px;padding:6px 12px;font-size:13px}
@@ -247,6 +261,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     .mins{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
     .mins .min{margin:0}
     .lbl-corta{display:none}.lbl-larga{display:inline}
+    #tHerr{max-width:760px;margin:0 auto}.piezas{grid-template-columns:repeat(3,1fr)}
     #tPlan .filtros{margin:0 0 6px;padding:0 0 6px;flex-wrap:wrap}
     .planMeses{display:grid;grid-template-columns:1fr 1fr;gap:0 18px;align-items:start}
     #tProgramar,#tFotos,#tLideres,#tNovedades{max-width:620px;margin:0 auto}
@@ -273,6 +288,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   <div id="tNovedades" class="oculto"></div>
   <div id="tProgramar" class="oculto"></div>
   <div id="tFotos" class="oculto"></div>
+  <div id="tHerr" class="oculto"></div>
   <div id="tLideres" class="oculto">
     <h2>Panel de líderes</h2>
     <p class="sub">Para coordinadores y equipos de ministerio. Entra con el correo registrado en tu ministerio.</p>
@@ -334,7 +350,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   const norm=s=>String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   let token='publico', usuario=null, info={publico:true}, correoPendiente='', vistaMes=null;
-  const PESTANAS=['tInicio','tCalendario','tPlan','tPanel','tNovedades','tProgramar','tFotos','tLideres'];
+  const PESTANAS=['tHerr','tInicio','tCalendario','tPlan','tPanel','tNovedades','tProgramar','tFotos','tLideres'];
 
   const guardar=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
   const leer=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
@@ -549,7 +565,8 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     const box=$('tPanel');
     try{ const r=await fuente(); if(!revisar(r))return; if($('tPanel').classList.contains('oculto'))return;
       let html='<h2>Mi ministerio</h2><p class="sub">Tu equipo y sus reuniones. Lo que el coordinador programa o cambia le llega a todo el equipo.</p>'
-        +`<div class="minombre"><span>Tu nombre en la app: <b>${esc(usuario.nombre||'sin nombre')}</b></span><button id="btnNombre">${usuario.nombre?'Cambiar':'Poner nombre'}</button></div>`;
+        +`<div class="minombre"><span>Tu nombre en la app: <b>${esc(usuario.nombre||'sin nombre')}</b></span><button id="btnNombre">${usuario.nombre?'Cambiar':'Poner nombre'}</button></div>`
+        +(usuario.admin?`<button class="herr-acceso" id="btnHerr"><span>🛠</span><div><b>Herramientas de administrador</b><small>Publicidad, calendario del mes y planner en PDF</small></div><i>›</i></button>`:'');
       if(!r.ministerios.length) html+='<div class="vacio">No perteneces a ningún ministerio todavía.</div>';
       html+='<div class="mins">';
       r.ministerios.forEach((m,i)=>{
@@ -572,6 +589,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       html+='</div>';
       box.innerHTML=html;
       $('btnNombre').onclick=cambiarNombre;
+      if($('btnHerr')) $('btnHerr').onclick=verHerr;
       const todas=[].concat(...r.ministerios.map(m=>m.reuniones));
       box.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotos(r.ministerios[+b.dataset.foto].nombre));
       box.querySelectorAll('[data-prog]').forEach(b=>b.onclick=()=>verFormulario(null,r.ministerios[+b.dataset.prog].nombre));
@@ -657,6 +675,70 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       aviso('¡Listo! '+pend.length+' foto'+(pend.length>1?'s':'')+' en Drive.'); $('ftSubir').textContent='Fotos enviadas';
     };
     $('ftVolver').onclick=()=>pestana('tPanel');
+  }
+
+  // ---------- 🛠 herramientas (solo administradores)
+  let herrMeses=new Set([new Date().getMonth()]);
+  function b64aBlob(b64,tipo){ const bin=atob(b64), a=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)a[i]=bin.charCodeAt(i); return new Blob([a],{type:tipo}) }
+  function descargar(blob,nombre){ const u=URL.createObjectURL(blob), a=document.createElement('a'); a.href=u; a.download=nombre; a.target='_blank'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),30000) }
+  async function compartir(blob,nombre){
+    const f=new File([blob],nombre,{type:blob.type});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:nombre}); return }catch(e){ if(e.name==='AbortError')return } }
+    descargar(blob,nombre); aviso('Tu navegador no deja compartir directo: se descargó el archivo.');
+  }
+  function verHerr(){
+    PESTANAS.forEach(t=>$(t).classList.toggle('oculto',t!=='tHerr')); window.scrollTo(0,0);
+    const box=$('tHerr');
+    box.innerHTML=`<h2>Herramientas</h2><p class="sub">Solo para administradores. Todo queda guardado en la carpeta «PUBLICIDAD 2027» de Drive.</p>
+      <div class="herr-caja"><h3>📣 Publicidad</h3>
+        <div class="herr-botones"><button data-pub="semana"><b>De la semana</b><small>Domingo y actividades hasta el domingo</small></button>
+          <button data-pub="domingo"><b>Solo el domingo</b><small>La pieza del próximo domingo</small></button></div>
+        <label>DE UNA ACTIVIDAD</label><select id="hEv"><option value="">Cargando actividades…</option></select>
+        <button class="boton" id="hPubEv" style="margin-top:10px">Generar publicidad de esta actividad</button></div>
+      <div class="herr-caja"><h3>🖨 PDF del mes</h3><p class="sub" style="margin:0 0 8px">Toca uno o varios meses.</p>
+        <div class="meses12">${MES3.map((m,i)=>`<button data-m="${i}">${cap(m)}</button>`).join('')}</div>
+        <div class="fila"><div><button class="boton" id="hPdfMes" style="margin-top:12px">Calendario (PDF)</button></div>
+          <div><button class="boton" id="hPdfPlan" style="margin-top:12px;background:var(--azul)">Planner (PDF)</button></div></div></div>
+      <div id="hRes"></div>
+      <button class="boton sec" id="hVolver">Volver</button>`;
+    const pintarMeses=()=>box.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on',herrMeses.has(+b.dataset.m)));
+    pintarMeses();
+    box.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{ const m=+b.dataset.m; herrMeses.has(m)?herrMeses.delete(m):herrMeses.add(m); pintarMeses() });
+    box.querySelectorAll('[data-pub]').forEach(b=>b.onclick=()=>generarPub(b.dataset.pub));
+    $('hPubEv').onclick=()=>{ const v=$('hEv').value; if(!v){aviso('Elige una actividad',true);return} const [fecha,...t]=v.split('|'); generarPub('evento',{fecha:fecha,titulo:t.join('|')}) };
+    $('hPdfMes').onclick=()=>generarPdf('mes'); $('hPdfPlan').onclick=()=>generarPdf('planner');
+    $('hVolver').onclick=()=>pestana('tPanel');
+    llamar('appHerrEventos',token).then(r=>{ if(!revisar(r))return;
+      $('hEv').innerHTML='<option value="">Elige una actividad…</option>'+r.eventos.map(e=>{const d=deClave(e.fecha);
+        return `<option value="${esc(e.fecha+'|'+e.titulo)}">${d.getDate()} ${MES3[d.getMonth()]} · ${esc(e.titulo)}</option>`}).join('') }).catch(e=>aviso(e.message,true));
+  }
+  function esperando(txt){ $('hRes').innerHTML=`<div class="herr-caja herr-esp"><div class="rueda"></div><div><b>${esc(txt)}</b><small>Puede tardar hasta un minuto. No cierres la app.</small></div></div>`; $('hRes').scrollIntoView({behavior:'smooth'}) }
+  async function generarPub(modo,ev){
+    esperando('Generando la publicidad…');
+    try{ const r=await llamar('appHerrPublicidad',token,modo,ev||null); if(!revisar(r)){ $('hRes').innerHTML=''; return }
+      const blobs=r.piezas.map(p=>b64aBlob(p.datos,'image/jpeg'));
+      $('hRes').innerHTML=`<div class="herr-caja"><h3>Listo · ${r.piezas.length} pieza${r.piezas.length>1?'s':''}</h3>
+        ${r.piezas.length>1?'<button class="boton" id="hTodas" style="margin:0 0 12px">Compartir todas</button>':''}
+        <div class="piezas">${r.piezas.map((p,i)=>`<div class="pieza"><img src="${URL.createObjectURL(blobs[i])}"><div class="acciones">
+          <button data-sh="${i}">Compartir</button><button data-dl="${i}">Descargar</button></div></div>`).join('')}</div>
+        <p class="sub" style="margin-top:10px"><a href="${esc(r.carpeta)}" target="_blank">Abrir carpeta en Drive</a> · <a href="${esc(r.slides)}" target="_blank">Ajustar en Slides</a></p></div>`;
+      $('hRes').querySelectorAll('[data-sh]').forEach(b=>b.onclick=()=>compartir(blobs[+b.dataset.sh],r.piezas[+b.dataset.sh].nombre));
+      $('hRes').querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>descargar(blobs[+b.dataset.dl],r.piezas[+b.dataset.dl].nombre));
+      if($('hTodas')) $('hTodas').onclick=async()=>{ const fs=r.piezas.map((p,i)=>new File([blobs[i]],p.nombre,{type:'image/jpeg'}));
+        if(navigator.canShare&&navigator.canShare({files:fs})){ try{await navigator.share({files:fs})}catch(e){} } else { fs.forEach((f,i)=>descargar(blobs[i],f.name)) } };
+    }catch(e){ $('hRes').innerHTML=''; aviso('Error: '+e.message,true) }
+  }
+  async function generarPdf(tipo){
+    if(!herrMeses.size){aviso('Elige al menos un mes',true);return}
+    esperando(tipo==='planner'?'Armando el planner…':'Armando el calendario…');
+    try{ const r=await llamar('appHerrPdf',token,tipo,[...herrMeses]); if(!revisar(r)){ $('hRes').innerHTML=''; return }
+      const blob=b64aBlob(r.datos,'application/pdf');
+      $('hRes').innerHTML=`<div class="herr-caja"><h3>Listo</h3><p style="margin:0 0 10px;font-weight:700">📄 ${esc(r.nombre)}</p>
+        <div class="acciones"><button id="hPa">Abrir</button><button id="hPs">Compartir</button><button id="hPd">Descargar</button></div>
+        <p class="sub" style="margin-top:10px"><a href="${esc(r.url)}" target="_blank">Ver en Drive</a></p></div>`;
+      $('hPa').onclick=()=>window.open(URL.createObjectURL(blob),'_blank');
+      $('hPs').onclick=()=>compartir(blob,r.nombre); $('hPd').onclick=()=>descargar(blob,r.nombre);
+    }catch(e){ $('hRes').innerHTML=''; aviso('Error: '+e.message,true) }
   }
 
   function cambiarNombre(){
