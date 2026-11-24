@@ -902,11 +902,11 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   function esperando(txt){ $('hRes').innerHTML=`<div class="herr-caja herr-esp"><div class="rueda"></div><div><b>${esc(txt)}</b><small>Puede tardar hasta un minuto. No cierres la app.</small></div></div>`; $('hRes').scrollIntoView({behavior:'smooth'}) }
 // ===== Publicidad dibujada en el celular (canvas): mismo diseño en post 4:5 y en historia 9:16
 const PUB_FILTRO={ // filtro de la foto de fondo
-  tono:'vino',     // 'vino' = foto en blanco y negro que se desvanece en vinotinto · 'negro' = oscurecida en negro
-  vino:'181,18,27',// color del desvanecido (R,G,B): rojo Alianza
-  oscuro:.18,      // 0 a 1: cuánto oscurecer toda la foto
-  desaturar:1,     // 0 a 1: cuánto color quitarle (1 = blanco y negro)
-  desenfoque:5     // px: 0 = foto nítida, 5 = suave, 12 = efecto burbujas
+  tono:'negro',    // 'negro' = foto a color con un velo gris oscuro · 'vino' = blanco y negro que se desvanece en rojo
+  vino:'181,18,27',// color del desvanecido cuando tono es 'vino'
+  oscuro:.28,      // 0 a 1: cuánto oscurecer la foto con el velo gris oscuro (0 = como antes)
+  desaturar:0,     // 0 a 1: cuánto color quitarle (0 = colores originales, 1 = blanco y negro)
+  desenfoque:0     // px: 0 = foto nítida, 5 = suave, 12 = efecto burbujas
 };
 const PUB_GRAD={ // degradados verticales: [color, alfa arriba, alfa abajo] (curva suave)
   SOMBRA:['14,14,18',0,0.93], ROJO:['181,18,27',0,0.96], SOMBRA_ARRIBA:['14,14,18',0.55,0]
@@ -960,7 +960,7 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
         c.beginPath(); c.rect(e.x,e.y,e.w,e.h); c.clip(); pubFotoDesenfocada(c,imgFoto,e.x+(e.w-w)/2,e.y+(e.h-h)/2,w,h,PUB_FILTRO.desenfoque,S);
         // Filtro: baja la saturación y oscurece la foto para que el texto resalte
         c.globalAlpha=PUB_FILTRO.desaturar; c.globalCompositeOperation='saturation'; c.fillStyle='#808080'; c.fillRect(e.x,e.y,e.w,e.h);
-        c.globalCompositeOperation='source-over'; c.globalAlpha=PUB_FILTRO.oscuro; c.fillStyle='#0b0d14'; c.fillRect(e.x,e.y,e.w,e.h);
+        c.globalCompositeOperation='source-over'; c.globalAlpha=PUB_FILTRO.oscuro; c.fillStyle='#17171b'; c.fillRect(e.x,e.y,e.w,e.h);
         if(PUB_FILTRO.tono==='vino'){ // tinte vinotinto suave en toda la foto + desvanecido hacia abajo
           c.globalAlpha=1; c.globalCompositeOperation='multiply'; c.fillStyle=`rgba(${PUB_FILTRO.vino},.35)`; c.fillRect(e.x,e.y,e.w,e.h);
           c.globalCompositeOperation='source-over'; const g=c.createLinearGradient(0,e.y,0,e.y+e.h);
