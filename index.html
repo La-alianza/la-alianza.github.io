@@ -901,6 +901,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   }
   function esperando(txt){ $('hRes').innerHTML=`<div class="herr-caja herr-esp"><div class="rueda"></div><div><b>${esc(txt)}</b><small>Puede tardar hasta un minuto. No cierres la app.</small></div></div>`; $('hRes').scrollIntoView({behavior:'smooth'}) }
 // ===== Publicidad dibujada en el celular (canvas): mismo diseño en post 4:5 y en historia 9:16
+const PUB_FILTRO={oscuro:.45, desaturar:.55}; // 0 a 1: cuánto oscurecer y cuánto quitar color a la foto de fondo
 const PUB_GRAD={ // degradados verticales: [color, alfa arriba, alfa abajo] (curva suave)
   SOMBRA:['14,14,18',0,0.93], ROJO:['181,18,27',0,0.96], SOMBRA_ARRIBA:['14,14,18',0.55,0]
 };
@@ -940,7 +941,10 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
       c.fillRect(e.x,e.y,e.w,e.h);
     } else if(e.t==='img'){
       if(imgFoto){ const k=Math.max(e.w/imgFoto.width,e.h/imgFoto.height), w=imgFoto.width*k, h=imgFoto.height*k;
-        c.beginPath(); c.rect(e.x,e.y,e.w,e.h); c.clip(); c.drawImage(imgFoto,e.x+(e.w-w)/2,e.y+(e.h-h)/2,w,h) }
+        c.beginPath(); c.rect(e.x,e.y,e.w,e.h); c.clip(); c.drawImage(imgFoto,e.x+(e.w-w)/2,e.y+(e.h-h)/2,w,h);
+        // Filtro: baja la saturación y oscurece la foto para que el texto resalte
+        c.globalAlpha=PUB_FILTRO.desaturar; c.globalCompositeOperation='saturation'; c.fillStyle='#808080'; c.fillRect(e.x,e.y,e.w,e.h);
+        c.globalCompositeOperation='source-over'; c.globalAlpha=PUB_FILTRO.oscuro; c.fillStyle='#0b0d14'; c.fillRect(e.x,e.y,e.w,e.h) }
       else { const g=c.createLinearGradient(e.x,e.y,e.x+e.w,e.y+e.h); g.addColorStop(0,'#5A7FA6'); g.addColorStop(.55,'#C8640C'); g.addColorStop(1,'#D9B40F');
         c.fillStyle=g; c.fillRect(e.x,e.y,e.w,e.h);
         c.globalAlpha=.10; c.fillStyle='#fff'; [[.2,.25,.35],[.8,.2,.25],[.6,.7,.4],[.15,.8,.2]].forEach(([fx,fy,fr])=>{ c.beginPath(); c.arc(e.x+e.w*fx,e.y+e.h*fy,e.w*fr,0,7); c.fill() }) }
