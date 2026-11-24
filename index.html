@@ -903,7 +903,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
 // ===== Publicidad dibujada en el celular (canvas): mismo diseño en post 4:5 y en historia 9:16
 const PUB_FILTRO={ // filtro de la foto de fondo
   tono:'vino',     // 'vino' = foto en blanco y negro que se desvanece en vinotinto · 'negro' = oscurecida en negro
-  vino:'122,14,26',// color del vinotinto (R,G,B)
+  vino:'181,18,27',// color del desvanecido (R,G,B): rojo Alianza
   oscuro:.18,      // 0 a 1: cuánto oscurecer toda la foto
   desaturar:1,     // 0 a 1: cuánto color quitarle (1 = blanco y negro)
   desenfoque:5     // px: 0 = foto nítida, 5 = suave, 12 = efecto burbujas
@@ -952,7 +952,7 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
       if(e.border){ c.globalAlpha=1; c.lineWidth=e.weight||1; c.strokeStyle=e.border; c.stroke() }
     } else if(e.t==='png'){
       if(e.png==='NOCHE'){ const g=c.createLinearGradient(0,e.y,0,e.y+e.h); g.addColorStop(0,'#0F1538'); g.addColorStop(1,'#343E7C'); c.fillStyle=g }
-      else { let [rgb,a0,a1]=PUB_GRAD[e.png]||PUB_GRAD.SOMBRA; if(PUB_FILTRO.tono==='vino'&&rgb==='14,14,18') rgb='70,8,16'; const g=c.createLinearGradient(0,e.y,0,e.y+e.h);
+      else { let [rgb,a0,a1]=PUB_GRAD[e.png]||PUB_GRAD.SOMBRA; if(PUB_FILTRO.tono==='vino'&&rgb==='14,14,18') rgb=PUB_FILTRO.vino; const g=c.createLinearGradient(0,e.y,0,e.y+e.h);
         for(let i=0;i<=10;i++){ const t=i/10, s=t*t*(3-2*t); g.addColorStop(t,`rgba(${rgb},${(a0+(a1-a0)*s).toFixed(3)})`) } c.fillStyle=g }
       c.fillRect(e.x,e.y,e.w,e.h);
     } else if(e.t==='img'){
