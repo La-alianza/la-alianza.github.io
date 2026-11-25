@@ -1232,12 +1232,12 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
     if(s<3600) return 'Hace '+Math.max(1,Math.round(s/60))+' min'; if(s<86400) return 'Hace '+Math.round(s/3600)+' h';
     if(s<7*86400){const n=Math.round(s/86400);return n<=1?'Ayer':'Hace '+n+' días'} return d.getDate()+' de '+MESES[d.getMonth()]; }
   async function verNovedades(){
-    const box=$('tNovedades'); const cab='<h2>Novedades</h2><p class="sub">Lo que se ha programado, cambiado o cancelado en tus ministerios.</p>';
+    const box=$('tNovedades'); const cab='<h2>Novedades</h2><p class="sub">'+(usuario.admin?'Todo lo que los líderes han programado, cambiado o cancelado.':'Lo que tú y los coordinadores de tus ministerios han programado, cambiado o cancelado.')+'</p>';
     box.innerHTML=cab+'<div class="vacio">Cargando…</div>';
     try{ const r=await llamar('appNovedades',token); if(!revisar(r))return;
       guardar('abVisto_'+usuario.email,clave(new Date())+'T'+new Date().toTimeString().slice(0,5)); $('puntoNov').classList.add('oculto');
       let html=cab;
-      if(!r.novedades.length) html+='<div class="vacio">Todavía no hay novedades.</div>';
+      if(!r.novedades.length) html+='<div class="vacio">'+(usuario.admin?'Todavía no hay novedades.':'Aquí aparecerán las reuniones que tú o los coordinadores de tus ministerios programen, cambien o cancelen.')+'</div>';
       r.novedades.forEach(n=>{ const a=ACC[n.accion]||['var(--gris)','•'];
         const quien=n.quien===usuario.email?'Tú':(n.nombre||n.quien.split('@')[0]);
         html+=`<div class="nov"><div class="ico" style="--c:${a[0]}">${a[1]}</div><div class="col"><div class="txt"><b>${esc(quien)}</b> ${esc(n.accion.toLowerCase())} · <b>${esc(n.ministerio)}</b><br>${esc(n.detalle)}</div>
