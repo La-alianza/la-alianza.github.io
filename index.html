@@ -173,11 +173,37 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .leyenda span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:0}
 
   /* ---------- calendario */
+  .vistas{display:flex;background:var(--linea);border-radius:12px;padding:3px;margin:0 0 10px;gap:3px}
+  .vistas button{flex:1;border:0;background:none;border-radius:9px;padding:8px 0;font:inherit;font-size:14px;font-weight:700;color:var(--suave)}
+  .vistas button.on{background:var(--tarjeta);color:var(--texto);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .pista{font-size:12px;color:var(--suave);text-align:center;margin:-4px 0 8px}
+  #tCalendario{touch-action:pan-x pan-y}
+  #calCuerpo{transition:transform .12s;transform-origin:center top}
+  .semana{display:flex;flex-direction:column;gap:8px}
+  .sdia{display:flex;gap:10px;background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:10px}
+  .sdia.hoy{border-color:var(--naranja);box-shadow:0 0 0 1px var(--naranja) inset}
+  .sfecha{width:46px;flex:none;text-align:center;cursor:pointer}
+  .sfecha span{display:block;font-size:11px;font-weight:800;color:var(--suave);text-transform:uppercase}
+  .sfecha b{display:block;font-size:24px;line-height:1.1}
+  .sdia.fest .sfecha b{color:var(--rojo)}
+  .seventos{flex:1;min-width:0}.seventos .tarjeta{margin-bottom:6px}.seventos .tarjeta:last-child{margin-bottom:0}
+  .snada{color:var(--suave);font-size:13px;padding:8px 0}
+  .anio{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+  .amini{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:8px;cursor:pointer}
+  .amini.actual{border-color:var(--naranja)}
+  .atit{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px}.atit b{font-size:14px}.atit span{font-size:11px;color:var(--suave);font-weight:700}
+  .agrid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+  .agrid i{font-style:normal;font-size:10px;text-align:center;line-height:17px;border-radius:5px;color:var(--suave)}
+  .agrid i[data-e]{background:var(--c);color:#fff;font-weight:800}
+  .agrid i.fest{color:var(--rojo);font-weight:800}.agrid i.fest[data-e]{color:#fff;box-shadow:0 0 0 1.5px var(--rojo) inset}.agrid i.hoy{box-shadow:0 0 0 1.5px var(--texto) inset;color:var(--texto)}
+  .cal-full{grid-column:1/-1}
+  @media (min-width:900px){ .anio{grid-template-columns:repeat(4,1fr)} .agrid i{font-size:12px;line-height:22px} .vistas{max-width:360px} }
   .mes{display:flex;align-items:center;justify-content:space-between;margin:8px 0 10px}
   .mes h2{margin:0}
   .flecha{background:var(--tarjeta);border:1px solid var(--linea);border-radius:12px;width:42px;height:42px;font-size:22px;color:var(--gris)}
   .grilla{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
   .cab{font-size:11px;font-weight:800;color:var(--suave);text-align:center;padding:4px 0}
+  button,.celda,a{touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .celda{background:var(--tarjeta);border:1px solid var(--linea);border-radius:10px;min-height:52px;padding:5px 3px;text-align:center;cursor:pointer}
   .celda.fuera{background:transparent;border-color:transparent;cursor:default}
   .celda.finde{background:#f8f6f1}
@@ -415,7 +441,8 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   const guardar=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
   const leer=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
   const leerJ=k=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
-  const guardarJ=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+  const guardarJ=(k,v)=>{ const txt=JSON.stringify(v);
+    try{ localStorage.setItem(k,txt) }catch(e){ try{ Object.keys(localStorage).filter(x=>/^c_(mes|serv)_/.test(x)).forEach(x=>localStorage.removeItem(x)); localStorage.setItem(k,txt) }catch(e2){} } };
   const quien=()=>esLider()?usuario.email:'pub';
 
   // Llama al servidor. Si no responde en 25 s se cancela, para que la pantalla nunca quede pegada esperando.
@@ -548,11 +575,13 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
 
   // ---------- calendario
   const mesEnCurso={};                       // evita pedir el mismo mes varias veces a la vez
+  const mesVisto={};                         // cuándo se actualizó cada mes en esta sesión
   function mesServidor(a,m){
     const k='c_mes_'+quien()+'_'+a+'_'+m;
-    if(!mesEnCurso[k]) mesEnCurso[k]=llamar('appMes',token,a,m).then(r=>{ if(r&&r.ok) guardarJ(k,r); return r }).finally(()=>delete mesEnCurso[k]);
+    if(!mesEnCurso[k]) mesEnCurso[k]=llamar('appMes',token,a,m).then(r=>{ if(r&&r.ok){ guardarJ(k,r); mesVisto[k]=Date.now() } return r }).finally(()=>delete mesEnCurso[k]);
     return mesEnCurso[k];
   }
+  let mesEspera;
   // Arma un mes al instante con el plan operativo ya guardado en el teléfono (las reuniones llegan después)
   function mesDesdePlan(a,m){
     const p=leerJ('c_plan'); if(!p||!p.ok) return null;
@@ -562,27 +591,94 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   let planPedido=false;
   function planEnFondo(forzar){ if(planPedido||(!forzar&&leerJ('c_plan')))return; planPedido=true;
     llamar('appPlan',token).then(r=>{ if(r&&r.ok) guardarJ('c_plan',r) }).catch(()=>{ planPedido=false }) }
+  function planEnFondoP(){ return new Promise(ok=>{ if(leerJ('c_plan'))return ok(); llamar('appPlan',token).then(r=>{ if(r&&r.ok) guardarJ('c_plan',r); ok() }).catch(()=>ok()) }) }
+  // Festivos de Colombia calculados en el teléfono (Ley Emiliani + Ley 2578 de 2026)
+  const festMem={};
+  function festivosCO(y){ if(festMem[y])return festMem[y];
+    const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),h=(19*a+b-d-g+15)%30,
+      i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+    const pas=new Date(y,Math.floor((h+l-7*m+114)/31)-1,((h+l-7*m+114)%31)+1), dia=(mm,dd)=>new Date(y,mm-1,dd),
+      mas=(x,n)=>new Date(x.getFullYear(),x.getMonth(),x.getDate()+n), lun=x=>mas(x,(8-x.getDay())%7);
+    const L=[[dia(1,1),'Año Nuevo'],[lun(dia(1,6)),'Reyes Magos'],[lun(dia(3,19)),'San José'],[mas(pas,-3),'Jueves Santo'],[mas(pas,-2),'Viernes Santo'],
+      [dia(5,1),'Día del Trabajo'],[lun(mas(pas,39)),'Ascensión del Señor'],[lun(mas(pas,60)),'Corpus Christi'],[lun(mas(pas,68)),'Sagrado Corazón'],
+      [lun(dia(6,29)),'San Pedro y San Pablo'],[dia(7,20),'Día de la Independencia'],[dia(8,7),'Batalla de Boyacá'],[lun(dia(8,15)),'Asunción de la Virgen'],
+      [lun(dia(10,12)),'Día de la Raza'],[lun(dia(11,1)),'Todos los Santos'],[lun(dia(11,11)),'Independencia de Cartagena'],[dia(12,8),'Inmaculada Concepción'],[dia(12,25),'Navidad']];
+    if(y>=2026) L.push([lun(dia(7,9)),'Virgen de Chiquinquirá']);
+    const o={}; L.forEach(([x,n])=>o[clave(x)]=n); return festMem[y]=o }
+  // Datos de un mes al instante: lo guardado, o armado con el plan del año
+  function datosMes(a,m){ const d=new Date(a,m,1), x=leerJ('c_mes_'+quien()+'_'+d.getFullYear()+'_'+d.getMonth()), r=(x&&x.ok)?x:mesDesdePlan(d.getFullYear(),d.getMonth());
+    if(r) r.festivos=Object.assign({},festivosCO(d.getFullYear()),r.festivos||{}); return r }
+  // Reparte los eventos por día dentro de un rango (los de varios días aparecen en cada día)
+  function porDiaRango(eventos,ini,fin){ const out={};
+    eventos.forEach(ev=>{ let d=deClave(ev.fecha), f=ev.hasta?deClave(ev.hasta):d;
+      if(isNaN(d)) return; if(isNaN(f)||f<d) f=d; if(d<ini) d=new Date(ini); if(f>fin) f=new Date(fin);
+      for(;d<=f;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)){ const k=clave(d); if(!(out[k]=out[k]||[]).some(x=>x.fecha===ev.fecha&&x.titulo===ev.titulo)) out[k].push(ev) } });
+    return out }
+  const NIVELES=['anio','mes','semana'];
+  function cambiarVista(modo){ if(!vistaMes||vistaMes.modo===modo)return; vistaMes.modo=modo;
+    if(modo!=='anio'&&!vistaMes.sel){ const h=clave(new Date()); vistaMes.sel=(h.slice(0,7)===vistaMes.a+'-'+String(vistaMes.m+1).padStart(2,'0'))?h:clave(new Date(vistaMes.a,vistaMes.m,1)) }
+    if(modo==='semana'&&vistaMes.sel){ const d=deClave(vistaMes.sel); vistaMes.a=d.getFullYear(); vistaMes.m=d.getMonth() }
+    verCalendario() }
+  // Pellizcar con dos dedos: abrir los dedos acerca (Año → Mes → Semana), juntarlos aleja (Semana → Mes → Año)
+  let pellizco=null, pellizcoListo=false;
+  function activarPellizco(){ if(pellizcoListo)return; pellizcoListo=true; const z=$('tCalendario');
+    const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+    z.addEventListener('touchstart',e=>{ if(e.touches.length===2) pellizco={d0:dist(e.touches),r:1} },{passive:true});
+    z.addEventListener('touchmove',e=>{ if(e.touches.length===2&&pellizco){ e.preventDefault(); pellizco.r=dist(e.touches)/pellizco.d0;
+      const c=$('calCuerpo'); if(c) c.style.transform=`scale(${Math.max(.85,Math.min(1.15,pellizco.r))})` } },{passive:false});
+    z.addEventListener('touchend',e=>{ if(!pellizco||e.touches.length)return; const r=pellizco.r; pellizco=null;
+      const c=$('calCuerpo'); if(c) c.style.transform='';
+      const n=NIVELES.indexOf(vistaMes.modo||'mes');
+      if(r>1.2&&n<2||r<.83&&n>0) guardar('abPellizco','1');
+      if(r>1.2&&n<2) cambiarVista(NIVELES[n+1]); else if(r<.83&&n>0) cambiarVista(NIVELES[n-1]) });
+    ['gesturestart','gesturechange'].forEach(t=>z.addEventListener(t,e=>e.preventDefault()));   // iPhone: que no haga zoom a la página
+    // Mac / portátil: pellizcar en el trackpad
+    let acum=0, tw; z.addEventListener('wheel',e=>{ if(!e.ctrlKey)return; e.preventDefault(); acum+=e.deltaY; clearTimeout(tw);
+      tw=setTimeout(()=>{ const n=NIVELES.indexOf(vistaMes.modo||'mes'); if(acum<-25&&n<2) cambiarVista(NIVELES[n+1]); else if(acum>25&&n>0) cambiarVista(NIVELES[n-1]); acum=0 },120) },{passive:false});
+  }
   async function verCalendario(){
-    if(!vistaMes){const h=new Date();vistaMes={a:h.getFullYear(),m:h.getMonth(),sel:clave(h)}}
-    const box=$('tCalendario');
-    box.innerHTML=`<div class="mes"><button class="flecha" id="mPrev">‹</button><h2>${cap(MESES[vistaMes.m])} ${vistaMes.a}</h2><button class="flecha" id="mNext">›</button></div><div id="calCuerpo"><div class="vacio">Cargando…</div></div>`;
-    $('mPrev').onclick=()=>{vistaMes.m--;if(vistaMes.m<0){vistaMes.m=11;vistaMes.a--}vistaMes.sel=null;verCalendario()};
-    $('mNext').onclick=()=>{vistaMes.m++;if(vistaMes.m>11){vistaMes.m=0;vistaMes.a++}vistaMes.sel=null;verCalendario()};
+    if(!vistaMes){const h=new Date();vistaMes={a:h.getFullYear(),m:h.getMonth(),sel:clave(h),modo:'mes'}}
+    if(!vistaMes.modo) vistaMes.modo='mes';
+    activarPellizco();
+    const box=$('tCalendario'), modo=vistaMes.modo;
+    let titulo=cap(MESES[vistaMes.m])+' '+vistaMes.a;
+    if(modo==='anio') titulo=String(vistaMes.a);
+    if(modo==='semana'){ const ini=inicioSemana(vistaMes.sel), fin=new Date(ini.getFullYear(),ini.getMonth(),ini.getDate()+6);
+      titulo=ini.getDate()+(ini.getMonth()!==fin.getMonth()?' '+MESES[ini.getMonth()].slice(0,3):'')+' – '+fin.getDate()+' '+MESES[fin.getMonth()].slice(0,3)+' '+fin.getFullYear() }
+    box.innerHTML=`<div class="mes"><button class="flecha" id="mPrev" aria-label="Anterior">‹</button><h2>${titulo}</h2><button class="flecha" id="mNext" aria-label="Siguiente">›</button></div>
+      <div class="vistas">${[['anio','Año'],['mes','Mes'],['semana','Semana']].map(([v,t])=>`<button data-v="${v}" class="${v===modo?'on':''}">${t}</button>`).join('')}</div>
+      ${leer('abPellizco')?'':'<div class="pista">👌 Pellizca con dos dedos para acercar o alejar</div>'}
+      <div id="calCuerpo"><div class="vacio">Cargando…</div></div>`;
+    box.querySelectorAll('.vistas button').forEach(b=>b.onclick=()=>{ guardar('abPellizco','1'); cambiarVista(b.dataset.v) });
+    const mover=paso=>{
+      if(modo==='anio'){ vistaMes.a+=paso }
+      else if(modo==='semana'){ const d=deClave(vistaMes.sel); d.setDate(d.getDate()+7*paso); vistaMes.sel=clave(d); vistaMes.a=d.getFullYear(); vistaMes.m=d.getMonth() }
+      else { vistaMes.m+=paso; if(vistaMes.m<0){vistaMes.m=11;vistaMes.a--} if(vistaMes.m>11){vistaMes.m=0;vistaMes.a++} vistaMes.sel=null }
+      verCalendario() };
+    $('mPrev').onclick=()=>mover(-1); $('mNext').onclick=()=>mover(1);
+    if(modo==='anio') return verAnio();
+    if(modo==='semana') return verSemana();
     const a0=vistaMes.a, m0=vistaMes.m, k='c_mes_'+quien()+'_'+a0+'_'+m0, vm=a0+'-'+m0;
-    const sigue=()=>vm===vistaMes.a+'-'+vistaMes.m&&!$('tCalendario').classList.contains('oculto');
+    const sigue=()=>vm===vistaMes.a+'-'+vistaMes.m&&vistaMes.modo==='mes'&&!$('tCalendario').classList.contains('oculto');
     // 1) pinta YA: lo guardado de ese mes, o si no existe, el mes armado con el plan operativo guardado
     const previo=leerJ(k), rapido=(previo&&previo.ok)?previo:mesDesdePlan(a0,m0);
     if(rapido) pintarMes(rapido); else planEnFondo();
-    // 2) actualiza en segundo plano (una sola petición por mes a la vez)
+    // 2) actualiza en segundo plano, solo si te quedas en ese mes y no se actualizó hace poco
+    if(rapido&&mesVisto[k]&&Date.now()-mesVisto[k]<180000) return;
+    clearTimeout(mesEspera); await new Promise(z=>mesEspera=setTimeout(z,rapido?600:0)); if(!sigue())return;
     try{ const r=await mesServidor(a0,m0); if(!r||!sigue())return; if(!revisar(r))return;
       if(JSON.stringify(r)!==JSON.stringify(rapido)) pintarMes(r);
       // precarga el mes anterior y el siguiente para que cambiar de mes sea inmediato
       [[a0,m0+1],[a0,m0-1]].forEach(([a,m])=>{ const d=new Date(a,m,1); if(!leerJ('c_mes_'+quien()+'_'+d.getFullYear()+'_'+d.getMonth())) mesServidor(d.getFullYear(),d.getMonth()).catch(()=>{}) });
     }catch(e){ if(!rapido&&sigue()) $('calCuerpo').innerHTML='<div class="vacio">No se pudo cargar ('+esc(e.message)+').<br><button class="boton sec" id="calOtra" style="margin-top:10px">Reintentar</button></div>', $('calOtra').onclick=verCalendario }
     function pintarMes(r){
+      r=Object.assign({},r,{festivos:Object.assign({},festivosCO(vistaMes.a),r.festivos||{})});
       const porDia={};
+      const mIni=new Date(vistaMes.a,vistaMes.m,1), mFin=new Date(vistaMes.a,vistaMes.m+1,0);
       r.eventos.forEach(ev=>{ let d=deClave(ev.fecha), fin=ev.hasta?deClave(ev.hasta):d;
-        for(;d<=fin;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)){ if(d.getMonth()===vistaMes.m)(porDia[clave(d)]=porDia[clave(d)]||[]).push(ev) } });
+        if(isNaN(d)) return; if(isNaN(fin)||fin<d) fin=d;
+        if(d<mIni) d=new Date(mIni); if(fin>mFin) fin=mFin;
+        for(;d<=fin;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1)) (porDia[clave(d)]=porDia[clave(d)]||[]).push(ev) });
       const prim=new Date(vistaMes.a,vistaMes.m,1), ult=new Date(vistaMes.a,vistaMes.m+1,0).getDate(), hoy=clave(new Date());
       if(!vistaMes.sel) vistaMes.sel=(hoy.slice(0,7)===clave(prim).slice(0,7))?hoy:clave(prim);
       let g='<div class="grilla">'+['D','L','M','M','J','V','S'].map(x=>`<div class="cab">${x}</div>`).join('');
@@ -602,6 +698,47 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       box.querySelectorAll('.celda[data-k]').forEach(c=>c.onclick=()=>{ vistaMes.sel=c.dataset.k;
         box.querySelectorAll('.celda.sel').forEach(x=>x.classList.remove('sel')); c.classList.add('sel'); $('calLista').innerHTML=lista(c.dataset.k) });
     }
+  }
+
+  function inicioSemana(k){ const d=deClave(k||clave(new Date())); d.setDate(d.getDate()-d.getDay()); return d }
+  // Vista SEMANA: los 7 días con todas sus actividades
+  function verSemana(){
+    const ini=inicioSemana(vistaMes.sel), fin=new Date(ini.getFullYear(),ini.getMonth(),ini.getDate()+6), ref=vistaMes.sel;
+    const meses=[[ini.getFullYear(),ini.getMonth()]]; if(fin.getMonth()!==ini.getMonth()) meses.push([fin.getFullYear(),fin.getMonth()]);
+    const pintar=()=>{ if(vistaMes.modo!=='semana'||vistaMes.sel!==ref)return;
+      const ds=meses.map(([a,m])=>datosMes(a,m)); if(ds.some(x=>!x)){ $('calCuerpo').innerHTML='<div class="vacio">Cargando…</div>'; return false }
+      const evs=[].concat(...ds.map(x=>x.eventos)), fest=Object.assign({},...ds.map(x=>x.festivos||{})), por=porDiaRango(evs,ini,fin), hoy=clave(new Date());
+      let h='<div class="semana">';
+      for(let i=0;i<7;i++){ const d=new Date(ini.getFullYear(),ini.getMonth(),ini.getDate()+i), k=clave(d), l=por[k]||[];
+        h+=`<div class="sdia${k===hoy?' hoy':''}${fest[k]?' fest':''}" data-k="${k}"><div class="sfecha"><span>${DIA3[d.getDay()]}</span><b>${d.getDate()}</b></div><div class="seventos">
+          ${fest[k]?`<div class="festivo" style="margin:0 0 6px">Festivo · ${esc(fest[k])}</div>`:''}
+          ${l.length?l.map(ev=>tarjeta(ev)).join(''):'<div class="snada">Sin actividades</div>'}</div></div>` }
+      h+='</div>';
+      $('calCuerpo').innerHTML='<div class="cal-sem">'+h+'</div>'+(esLider()?'<div><div id="servBox"></div></div>':'');
+      $('calCuerpo').querySelectorAll('.sfecha').forEach(f=>f.onclick=()=>{ vistaMes.sel=f.parentNode.dataset.k; cambiarVista('mes') });
+      if(esLider()) verServidores(clave(fin));
+      return true };
+    if(pintar()===false) planEnFondoP().then(pintar);
+    meses.forEach(([a,m])=>mesServidor(a,m).then(r=>{ if(r&&r.ok) pintar() }).catch(()=>{}));
+  }
+  // Vista AÑO: los 12 meses en miniatura; toca uno para abrirlo
+  function verAnio(){
+    const a=vistaMes.a;
+    const pintar=()=>{ if(vistaMes.modo!=='anio'||vistaMes.a!==a)return;
+      if(!leerJ('c_plan')){ $('calCuerpo').innerHTML='<div class="vacio">Cargando…</div>'; return false }
+      const hoy=clave(new Date()); let h='<div class="anio">';
+      for(let m=0;m<12;m++){ const r=datosMes(a,m)||{eventos:[],festivos:festivosCO(a)}, prim=new Date(a,m,1), ult=new Date(a,m+1,0), por=porDiaRango(r.eventos,prim,ult);
+        const n=Object.values(por).reduce((t,l)=>t+l.length,0);
+        h+=`<div class="amini${hoy.slice(0,7)===clave(prim).slice(0,7)?' actual':''}" data-m="${m}"><div class="atit"><b>${cap(MESES[m])}</b><span>${n?n:''}</span></div><div class="agrid">`;
+        for(let i=0;i<prim.getDay();i++) h+='<i></i>';
+        for(let d=1;d<=ult.getDate();d++){ const k=clave(new Date(a,m,d)), l=por[k];
+          const fe=(r.festivos||{})[k], rojo=fe||new Date(a,m,d).getDay()===0;
+          h+=`<i class="${k===hoy?'hoy ':''}${rojo?'fest':''}"${fe?` title="${esc(fe)}"`:''}${l?` style="--c:${color(l[0])}" data-e="1"`:''}>${d}</i>` }
+        h+='</div></div>' }
+      $('calCuerpo').innerHTML='<div class="cal-full">'+h+'</div>'+leyenda()+'</div>';
+      $('calCuerpo').querySelectorAll('.amini').forEach(x=>x.onclick=()=>{ vistaMes.m=+x.dataset.m; vistaMes.sel=null; cambiarVista('mes') });
+      return true };
+    if(pintar()===false) planEnFondoP().then(pintar);
   }
 
   // ---------- plan operativo: todo el calendario general por meses
@@ -649,14 +786,17 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   const SERV_COL={'Nota':'#6B3FA0','Dto. Comunicaciones':'#5A7FA6','Servicio 7:00 AM':'#C8640C','Servicio 10:30 AM':'#C8640C','Ministerio de Alabanza':'#B5121B',
     'Intercesión auditorio 6:00 AM':'#2F6EB5','Intercesión auditorio 9:15 AM':'#2F6EB5','Diáconos':'#6B3FA0','Escuela Bíblica Infantil':'#5E8C1F',
     'Ayunos sábados':'#B8860B','Cooperativa':'#C8640C','Onces niños':'#5E8C1F'};
-  const servMem={};
+  const servMem={}, servEnCurso={};
   function domingoDe(k){ const d=deClave(k); d.setDate(d.getDate()+(7-d.getDay())%7); return clave(d) }
   async function verServidores(k){
     const dom=domingoDe(k), key='c_serv_'+dom;
     const pintar=r=>{ const box=$('servBox'); if(!box||domingoDe(vistaMes&&vistaMes.sel||k)!==r.domingo)return; box.innerHTML=htmlServidores(r) };
     const previo=servMem[dom]||leerJ(key); if(previo) pintar(previo); else if($('servBox')) $('servBox').innerHTML='<div class="serv-cab">Servidores del fin de semana</div><div class="vacio" style="padding:12px">Cargando…</div>';
+    if(servMem[dom]||servEnCurso[dom]) return;   // ya está al día o ya se está pidiendo
+    await new Promise(z=>setTimeout(z,500)); if(!$('servBox')||domingoDe(vistaMes&&vistaMes.sel||k)!==dom||servMem[dom]||servEnCurso[dom]) return; // solo si sigues en ese fin de semana
+    servEnCurso[dom]=1;
     try{ const r=await llamar('appServidores',token,k); if(!r||!r.ok){ if(r&&r.sesion)revisar(r); return }
-      servMem[dom]=r; guardarJ(key,r); pintar(r) }catch(e){}
+      servMem[dom]=r; guardarJ(key,r); pintar(r) }catch(e){} finally{ delete servEnCurso[dom] }
   }
   function htmlServidores(r){
     const d=deClave(r.domingo);
