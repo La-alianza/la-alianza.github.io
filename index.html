@@ -418,12 +418,19 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   const guardarJ=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
   const quien=()=>esLider()?usuario.email:'pub';
 
+  // Llama al servidor. Si no responde en 25 s se cancela, para que la pantalla nunca quede pegada esperando.
   function llamar(fn,...args){
+    const LIMITE=25000;
     if(window.google&&google.script&&google.script.run)
-      return new Promise((ok,mal)=>{ google.script.run.withSuccessHandler(ok).withFailureHandler(mal)[fn](...args) });
+      return new Promise((ok,mal)=>{ const t=setTimeout(()=>mal(new Error('La conexión está lenta')),LIMITE);
+        google.script.run.withSuccessHandler(r=>{clearTimeout(t);ok(r)}).withFailureHandler(e=>{clearTimeout(t);mal(e)})[fn](...args) });
     // versión instalable (GitHub Pages): habla con la misma app por internet
+    const ctl=window.AbortController?new AbortController():null, t=ctl&&setTimeout(()=>ctl.abort(),LIMITE);
     return fetch(window.API_URL,{method:'POST',redirect:'follow',headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({fn:fn,args:args})}).then(r=>{ if(!r.ok) throw new Error('Sin conexión ('+r.status+')'); return r.json() });
+      body:JSON.stringify({fn:fn,args:args}),signal:ctl?ctl.signal:undefined})
+      .then(r=>{ if(!r.ok) throw new Error('Sin conexión ('+r.status+')'); return r.json() })
+      .catch(e=>{ throw (e&&e.name==='AbortError')?new Error('La conexión está lenta'):e })
+      .finally(()=>t&&clearTimeout(t));
   }
   function cargando(on){$('cargando').classList.toggle('on',!!on)}
   let tt; function aviso(txt,error){const t=$('toast');t.textContent=txt;t.className='toast on'+(error?' error':'');clearTimeout(tt);tt=setTimeout(()=>t.className='toast',3500)}
@@ -540,20 +547,38 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   }
 
   // ---------- calendario
+  const mesEnCurso={};                       // evita pedir el mismo mes varias veces a la vez
+  function mesServidor(a,m){
+    const k='c_mes_'+quien()+'_'+a+'_'+m;
+    if(!mesEnCurso[k]) mesEnCurso[k]=llamar('appMes',token,a,m).then(r=>{ if(r&&r.ok) guardarJ(k,r); return r }).finally(()=>delete mesEnCurso[k]);
+    return mesEnCurso[k];
+  }
+  // Arma un mes al instante con el plan operativo ya guardado en el teléfono (las reuniones llegan después)
+  function mesDesdePlan(a,m){
+    const p=leerJ('c_plan'); if(!p||!p.ok) return null;
+    const kIni=clave(new Date(a,m,1)), kFin=clave(new Date(a,m+1,0));
+    return {ok:true, eventos:p.plan.filter(x=>!((x.hasta||x.fecha)<kIni||x.fecha>kFin)), festivos:p.festivos||{}};
+  }
+  let planPedido=false;
+  function planEnFondo(forzar){ if(planPedido||(!forzar&&leerJ('c_plan')))return; planPedido=true;
+    llamar('appPlan',token).then(r=>{ if(r&&r.ok) guardarJ('c_plan',r) }).catch(()=>{ planPedido=false }) }
   async function verCalendario(){
     if(!vistaMes){const h=new Date();vistaMes={a:h.getFullYear(),m:h.getMonth(),sel:clave(h)}}
     const box=$('tCalendario');
     box.innerHTML=`<div class="mes"><button class="flecha" id="mPrev">‹</button><h2>${cap(MESES[vistaMes.m])} ${vistaMes.a}</h2><button class="flecha" id="mNext">›</button></div><div id="calCuerpo"><div class="vacio">Cargando…</div></div>`;
     $('mPrev').onclick=()=>{vistaMes.m--;if(vistaMes.m<0){vistaMes.m=11;vistaMes.a--}vistaMes.sel=null;verCalendario()};
     $('mNext').onclick=()=>{vistaMes.m++;if(vistaMes.m>11){vistaMes.m=0;vistaMes.a++}vistaMes.sel=null;verCalendario()};
-    const k='c_mes_'+quien()+'_'+vistaMes.a+'_'+vistaMes.m, vm=vistaMes.a+'-'+vistaMes.m;
-    const previo=leerJ(k); if(previo&&previo.ok) pintarMes(previo);
-    try{ const r=await llamar('appMes',token,vistaMes.a,vistaMes.m); if(!revisar(r))return;
-      guardarJ(k,r); if(vm===vistaMes.a+'-'+vistaMes.m&&JSON.stringify(r)!==JSON.stringify(previo)) pintarMes(r);
-      // precarga el mes siguiente para que cambiar de mes sea inmediato
-      const sm=vistaMes.m===11?0:vistaMes.m+1, sa=vistaMes.m===11?vistaMes.a+1:vistaMes.a, ks='c_mes_'+quien()+'_'+sa+'_'+sm;
-      if(!leerJ(ks)) llamar('appMes',token,sa,sm).then(x=>{if(x&&x.ok)guardarJ(ks,x)}).catch(()=>{});
-    }catch(e){ if(!(previo&&previo.ok)) $('calCuerpo').innerHTML='<div class="vacio">No se pudo cargar: '+esc(e.message)+'</div>'}
+    const a0=vistaMes.a, m0=vistaMes.m, k='c_mes_'+quien()+'_'+a0+'_'+m0, vm=a0+'-'+m0;
+    const sigue=()=>vm===vistaMes.a+'-'+vistaMes.m&&!$('tCalendario').classList.contains('oculto');
+    // 1) pinta YA: lo guardado de ese mes, o si no existe, el mes armado con el plan operativo guardado
+    const previo=leerJ(k), rapido=(previo&&previo.ok)?previo:mesDesdePlan(a0,m0);
+    if(rapido) pintarMes(rapido); else planEnFondo();
+    // 2) actualiza en segundo plano (una sola petición por mes a la vez)
+    try{ const r=await mesServidor(a0,m0); if(!r||!sigue())return; if(!revisar(r))return;
+      if(JSON.stringify(r)!==JSON.stringify(rapido)) pintarMes(r);
+      // precarga el mes anterior y el siguiente para que cambiar de mes sea inmediato
+      [[a0,m0+1],[a0,m0-1]].forEach(([a,m])=>{ const d=new Date(a,m,1); if(!leerJ('c_mes_'+quien()+'_'+d.getFullYear()+'_'+d.getMonth())) mesServidor(d.getFullYear(),d.getMonth()).catch(()=>{}) });
+    }catch(e){ if(!rapido&&sigue()) $('calCuerpo').innerHTML='<div class="vacio">No se pudo cargar ('+esc(e.message)+').<br><button class="boton sec" id="calOtra" style="margin-top:10px">Reintentar</button></div>', $('calOtra').onclick=verCalendario }
     function pintarMes(r){
       const porDia={};
       r.eventos.forEach(ev=>{ let d=deClave(ev.fecha), fin=ev.hasta?deClave(ev.hasta):d;
@@ -1149,6 +1174,7 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
       guardarJ('c_arranque_'+r.token,r);
       aplicarArranque(r,!previo||r.token!==guardado);
       if(esLider()) revisarNovedades();
+      setTimeout(()=>planEnFondo(true),2500);   // deja listo el plan del año: así el calendario cambia de mes al instante
     }catch(e){ cargando(0); if(!previo){ aviso('No se pudo conectar. Revisa tu internet.',true); modoPublico() } }
   })();
 })();
