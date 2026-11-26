@@ -175,6 +175,19 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .reu.pasada{opacity:.95}.reu a.veracta{display:inline-block;margin-top:6px;font-weight:800;color:#1e7a46;text-decoration:none;font-size:13px}
   .acta-opc{border:1px solid var(--linea);background:var(--tarjeta);border-radius:14px;padding:12px;margin:12px 0}
   .acta-opc h3{margin:0 0 4px;font-size:15px}.acta-opc p{margin:0 0 8px;color:var(--suave);font-size:13px}
+  .evc{border:1px solid var(--linea);border-radius:12px;padding:10px;margin-bottom:8px}
+  .evc[data-estado="CUMPLIDO"]{background:#f1faf4;border-color:#bfe5cd}.evc[data-estado="CANCELADO"]{background:#f6f6f6}.evc[data-estado="REPROGRAMADO"]{background:#f2f6fb;border-color:#c9d8ea}
+  .evc-t{font-weight:700;font-size:14px}.evc-t span{font-size:11px;color:var(--suave);font-weight:800;margin-right:2px}
+  .evc-d{font-size:12px;color:var(--suave);margin:2px 0 8px}
+  .evc-b{display:flex;gap:6px}.evc-b button{flex:1;border:1px solid var(--linea);background:#fff;border-radius:9px;padding:8px 2px;font:inherit;font-size:12px;font-weight:800;color:var(--gris)}
+  .evc-b button.on[data-e="CUMPLIDO"]{background:#1e7a46;border-color:#1e7a46;color:#fff}.evc-b button.on[data-e="CANCELADO"]{background:#777;border-color:#777;color:#fff}
+  .evc-b button.on[data-e="REPROGRAMADO"]{background:#3e5f84;border-color:#3e5f84;color:#fff}
+  .evc-x,.evc-r{display:none}.evc.ver-x .evc-x{display:block;margin-top:8px}.evc.ver-r .evc-r{display:grid;grid-template-columns:1.4fr 1fr;gap:6px}
+  .evc-x input{margin:0 0 6px}
+  .asis{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
+  .asi{display:flex;align-items:center;gap:10px;border:1px solid var(--linea);border-radius:10px;padding:9px 10px;margin:0;font-size:14px;font-weight:600;color:var(--texto);text-transform:none;letter-spacing:0;cursor:pointer}
+  .asi input{width:20px;height:20px;margin:0;accent-color:#1e7a46;flex:none}.asi.on{background:#e9f7ef;border-color:#bfe5cd}
+  .asis-tot{font-size:12px;color:var(--suave);margin:2px 0 6px}
   .comp{display:grid;grid-template-columns:2fr 1.3fr 1fr;gap:6px;margin-bottom:6px}.comp input{margin:0}
   .chip.rep{background:#eaf0f8;color:#3e5f84}.chip.apl{background:#fdf2e7;color:#a04d00}.chip.reunion{background:#efefef;color:#666}
   .festivo{background:var(--rosa);color:var(--rojo);font-weight:800;font-size:13px;border-radius:10px;padding:8px 12px;margin-bottom:8px}
@@ -935,7 +948,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
         if(!m.reuniones.length) html+='<div class="t-det">No hay reuniones programadas.</div>';
         const hoyK=clave(new Date());
         const pintaReu=(ev,pasada)=>{
-          const notas=limpiarNotas(ev.notas), puedeActa=coord&&ev.puedeEditar&&ev.fecha<=hoyK;
+          const notas=limpiarNotas(ev.notas), puedeActa=ev.fecha<=hoyK;   // el coordinador o cualquier miembro del equipo
           html+=`<div class="reu${pasada?' pasada':''}"><div class="t-tit">${esc(ev.titulo)}${chipEstado(ev.estado)}</div>
             <div class="t-det"><b>${esc(cap(fechaLarga(ev.fecha)))}</b> · ${esc(hora12(ev.horaIni))}${ev.horaFin?' – '+esc(hora12(ev.horaFin)):''}${ev.lugar?' · '+esc(ev.lugar):''}${ev.modalidad?' · '+esc(cap(ev.modalidad.toLowerCase())):''}</div>
             ${notas?`<div class="t-not">${esc(notas)}</div>`:''}
@@ -965,7 +978,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       box.querySelectorAll('[data-prog]').forEach(b=>b.onclick=()=>verFormulario(null,r.ministerios[+b.dataset.prog].nombre));
       box.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>verFormulario(todas.find(x=>x.id===b.dataset.ed)));
       box.querySelectorAll('[data-can]').forEach(b=>b.onclick=()=>confirmarCancelar(todas.find(x=>x.id===b.dataset.can)));
-      box.querySelectorAll('[data-acta]').forEach(b=>b.onclick=()=>{ const ev=todas.find(x=>x.id===b.dataset.acta); if(ev) verActa(ev) });
+      box.querySelectorAll('[data-acta]').forEach(b=>b.onclick=()=>{ const ev=todas.find(x=>x.id===b.dataset.acta); if(!ev)return; const mm=r.ministerios.find(m=>norm(m.nombre)===norm(ev.ministerio))||{}; verActa(ev,mm.asistentes||[],mm.compromisos||[]) });
     }catch(e){box.innerHTML='<div class="vacio">No se pudo cargar: '+esc(e.message)+'</div>'}
   }
 
@@ -994,31 +1007,58 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     };
     $('fVolver').onclick=()=>pestana('tPanel');
   }
-  // ---------- acta de la reunión: llenarla en la app, o descargar la plantilla y subirla
-  function verActa(ev){
+  // ---------- acta de la reunión: 1) evaluar compromisos anteriores 2) asistencia 3) escribirla aquí o subirla
+  function verActa(ev,equipo,abiertos){
     PESTANAS.forEach(t=>$(t).classList.toggle('oculto',t!=='tActa')); window.scrollTo(0,0);
-    const box=$('tActa'), comp=()=>`<div class="comp"><input placeholder="Compromiso"><input placeholder="Responsable"><input placeholder="Fecha"></div>`;
+    abiertos=abiertos||[];
+    const box=$('tActa'), orto='spellcheck="true" lang="es" autocorrect="on" autocapitalize="sentences"';
+    const comp=()=>`<div class="comp"><input ${orto} placeholder="Compromiso"><input ${orto} placeholder="Responsable"><input placeholder="Fecha"></div>`;
     box.innerHTML=`<h2>Acta de la reunión</h2>
       <p class="sub"><b>${esc(ev.titulo)}</b> · ${esc(ev.ministerio)}<br>${esc(cap(fechaLarga(ev.fecha)))} · ${esc(hora12(ev.horaIni))}</p>
-      <div class="acta-opc"><h3>✍️ Llenar el acta aquí</h3><p>Se crea con la plantilla de la iglesia, queda guardada en Drive y la reunión pasa a <b>Cerrada con acta</b>.</p>
-        <label>ASISTENTES (UNO POR RENGLÓN)</label><textarea id="aAsi" rows="4" placeholder="Juan Pérez&#10;María Gómez"></textarea>
-        <label>TEMAS TRATADOS (UNO POR RENGLÓN)</label><textarea id="aTem" rows="4"></textarea>
-        <label>DECISIONES (UNA POR RENGLÓN)</label><textarea id="aDec" rows="4"></textarea>
-        <label>COMPROMISOS</label><div id="aComp">${comp()}${comp()}</div>
+      ${abiertos.length?`<div class="acta-opc"><h3>1. Compromisos de reuniones anteriores</h3><p>Antes de empezar, cuenta cómo van los compromisos que quedaron pendientes.</p>
+        ${abiertos.map(c=>`<div class="evc" data-id="${esc(c.id)}"><div class="evc-t"><span>${esc(c.id)}</span> ${esc(c.compromiso)}</div>
+          <div class="evc-d">${esc(c.responsable||'Sin responsable')}${c.fecha?' · para el '+esc(c.fecha):''}${c.estadoActual==='REPROGRAMADO'?' · ya reprogramado':''}</div>
+          <div class="evc-b"><button data-e="CUMPLIDO">✓ Cumplido</button><button data-e="CANCELADO">✕ Cancelado</button><button data-e="REPROGRAMADO">↻ Reprogramado</button></div>
+          <div class="evc-x"><input class="evObs" ${orto} placeholder="Motivo / observaciones">
+            <div class="evc-r"><input class="evResp" ${orto} placeholder="Nuevo responsable (si cambia)"><input class="evFec" placeholder="Nueva fecha"></div></div></div>`).join('')}</div>`:''}
+      <div class="acta-opc"><h3>${abiertos.length?'2':'1'}. ¿Quién asistió?</h3><p>Marca a cada miembro del equipo que estuvo en la reunión.</p>
+        ${equipo.length?`<div class="asis">${equipo.map(p=>`<label class="asi"><input type="checkbox" value="${esc(p.email)}"><span>${esc(p.nombre)}</span></label>`).join('')}</div>
+          <div class="asis-tot" id="aTot">0 de ${equipo.length} asistieron</div>`:'<div class="t-det">No encontré el equipo de este ministerio en la hoja Equipos.</div>'}
+        <label>OTROS ASISTENTES O INVITADOS (UNO POR RENGLÓN)</label><textarea id="aAsi" rows="2" ${orto} placeholder="Ej: Pastor Carlos"></textarea></div>
+      <div class="acta-opc"><h3>${abiertos.length?'3':'2'}. ✍️ Escribe el acta aquí</h3><p>Se crea con la plantilla de la iglesia, queda en Drive y la reunión pasa a <b>Cerrada con acta</b>.</p>
+        <label>TEMAS TRATADOS (UNO POR RENGLÓN)</label><textarea id="aTem" rows="4" ${orto}></textarea>
+        <label>DECISIONES (UNA POR RENGLÓN)</label><textarea id="aDec" rows="4" ${orto}></textarea>
+        <label>COMPROMISOS NUEVOS</label><div id="aComp">${comp()}${comp()}</div>
         <button class="boton-mini" id="aMas">+ Otro compromiso</button>
-        <label>PRÓXIMA REUNIÓN (FECHA Y HORA)</label><input id="aProx" placeholder="Ej: sábado 9 de enero, 7:00 p. m.">
+        <label>PRÓXIMA REUNIÓN (FECHA Y HORA)</label><input id="aProx" ${orto} placeholder="Ej: sábado 9 de enero, 7:00 p. m.">
         <button class="boton" id="aGuardar">Guardar y cerrar acta</button></div>
-      <div class="acta-opc"><h3>📄 Prefiero llenarla en Word</h3><p>Descarga la plantilla con los datos de la reunión, llénala en el celular o en el computador y súbela aquí (Word, PDF o foto).</p>
-        <button class="boton sec" id="aPlant">⬇ Descargar plantilla</button>
-        <label class="subir" for="aArchivo" style="margin-top:10px">⬆ Subir acta<small>Word, PDF o foto del acta firmada</small></label>
+      <div class="acta-opc"><h3>📄 …o hazla en Word y súbela</h3>
+        <p>La plantilla trae los datos de la reunión, los compromisos anteriores para evaluar y la lista del equipo para poner una X a quien asistió.</p>
+        <p><b>Word (.docx):</b> la app lee sola la asistencia, la evaluación y los compromisos nuevos. <b>PDF o foto:</b> también se puede, pero marca arriba la asistencia${abiertos.length?' y la evaluación':''}; los compromisos nuevos no se leen solos.</p>
+        <button class="boton sec" id="aPlant">⬇ Descargar plantilla (Word)</button>
+        <label class="subir" for="aArchivo" style="margin-top:10px">⬆ Subir acta<small>Word (recomendado), PDF o foto</small></label>
         <input id="aArchivo" type="file" accept=".doc,.docx,.pdf,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="oculto"></div>
       <button class="boton sec" id="aVolver">Volver</button>`;
     const listo=r=>{ aviso(r.msg); try{localStorage.removeItem('c_panel_'+quien())}catch(e){} pestana('tPanel') };
+    // evaluación de compromisos anteriores
+    box.querySelectorAll('.evc').forEach(c=>c.querySelectorAll('.evc-b button').forEach(b=>b.onclick=()=>{
+      c.dataset.estado=b.dataset.e; c.querySelectorAll('.evc-b button').forEach(x=>x.classList.toggle('on',x===b));
+      c.classList.toggle('ver-x',b.dataset.e!=='CUMPLIDO'); c.classList.toggle('ver-r',b.dataset.e==='REPROGRAMADO');
+      c.querySelector('.evObs').placeholder=b.dataset.e==='CANCELADO'?'¿Por qué ya no se va a hacer?':b.dataset.e==='REPROGRAMADO'?'¿Por qué se reprogramó?':'Observaciones';
+    }));
+    const leerEval=()=>[...box.querySelectorAll('.evc')].map(c=>({id:c.dataset.id,estado:c.dataset.estado||'',obs:c.querySelector('.evObs').value.trim(),
+      nuevoResp:c.dataset.estado==='REPROGRAMADO'?c.querySelector('.evResp').value.trim():'',nuevaFecha:c.dataset.estado==='REPROGRAMADO'?c.querySelector('.evFec').value.trim():''}));
+    const leerAsis=()=>[...box.querySelectorAll('.asi input:checked')].map(c=>c.value);
+    const evalOk=(exigir)=>{ const e=leerEval(); if(e.some(x=>!x.estado)){ if(exigir){aviso('Evalúa todos los compromisos anteriores.',true); box.querySelector('.evc:not([data-estado])').scrollIntoView({behavior:'smooth',block:'center'})} return false }
+      if(e.some(x=>x.estado!=='CUMPLIDO'&&!x.obs)){ if(exigir)aviso('Escribe el motivo de los compromisos cancelados o reprogramados.',true); return false } return true };
     $('aMas').onclick=()=>$('aComp').insertAdjacentHTML('beforeend',comp());
+    box.querySelectorAll('.asi input').forEach(c=>c.onchange=()=>{ c.parentNode.classList.toggle('on',c.checked); $('aTot').textContent=leerAsis().length+' de '+equipo.length+' asistieron' });
     $('aVolver').onclick=()=>pestana('tPanel');
     $('aGuardar').onclick=async()=>{
-      const cont={asistentes:$('aAsi').value,temas:$('aTem').value,decisiones:$('aDec').value,proxima:$('aProx').value,
+      if(!evalOk(true))return;
+      const cont={asistio:leerAsis(),evaluacion:leerEval(),asistentes:$('aAsi').value,temas:$('aTem').value,decisiones:$('aDec').value,proxima:$('aProx').value,
         compromisos:[...$('aComp').querySelectorAll('.comp')].map(f=>[...f.querySelectorAll('input')].map(i=>i.value.trim())).filter(c=>c.some(String))};
+      if(!cont.asistio.length&&!cont.asistentes.trim()){aviso('Marca quién asistió a la reunión.',true);return}
       $('aGuardar').disabled=true; cargando(1);
       try{ const r=await llamar('appActaCrear',token,ev.id,cont); if(!revisar(r))return; listo(r) }
       catch(e){aviso('Error: '+e.message,true)} finally{cargando(0); if($('aGuardar'))$('aGuardar').disabled=false}
@@ -1031,9 +1071,13 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       catch(e){aviso('Error: '+e.message,true)} finally{cargando(0)} };
     $('aArchivo').onchange=async e=>{ const arch=e.target.files[0]; e.target.value=''; if(!arch)return;
       if(arch.size>20*1048576){aviso('El archivo pasa de 20 MB.',true);return}
+      const esWord=/\.docx$/i.test(arch.name);
+      if(/\.doc$/i.test(arch.name)){aviso('Guárdalo como .docx (Word moderno) para que la app lo pueda leer.',true);return}
+      if(!esWord&&(!leerAsis().length||(abiertos.length&&!evalOk(false)))){ aviso('Como es PDF o foto, primero marca arriba quién asistió'+(abiertos.length?' y evalúa los compromisos anteriores':'')+'.',true); window.scrollTo({top:0,behavior:'smooth'}); return }
       cargando(1);
       try{ const datos=await new Promise((ok,mal)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>mal(new Error('No se pudo leer el archivo'));fr.readAsDataURL(arch)});
-        const r=await llamar('appActaSubir',token,ev.id,{nombre:arch.name,mime:arch.type,datos}); if(!revisar(r))return; listo(r) }
+        const ev2=leerEval().filter(x=>x.estado);
+        const r=await llamar('appActaSubir',token,ev.id,{nombre:arch.name,mime:arch.type,datos},{asistio:leerAsis(),evaluacion:ev2}); if(!revisar(r))return; listo(r) }
       catch(x){aviso('Error: '+x.message,true)} finally{cargando(0)} };
   }
   function confirmarCancelar(ev){
