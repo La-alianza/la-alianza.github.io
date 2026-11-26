@@ -167,6 +167,15 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .t-det b{color:var(--gris)}
   .t-not{font-size:13px;color:var(--gris);margin-top:6px;background:#faf7f1;border-radius:8px;padding:6px 8px}
   .chip{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:1px}
+  .chip.cerrado{background:#d9f2e3;color:#1e7a46}
+  .control{border-radius:12px;padding:10px 12px;margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:10px}
+  .control.falta{background:#fff4e0;border:1px solid #f3cf8e;color:#8a5300}.control.ok{background:#e9f7ef;border:1px solid #bfe5cd;color:#1e7a46}
+  .control.acta{background:#fdecea;border:1px solid #f2c9c4;color:#a1281c}
+  .control span{flex:1}.control button{border:0;border-radius:9px;padding:7px 10px;font:inherit;font-size:13px;font-weight:800;background:#fff;color:inherit;box-shadow:0 1px 2px rgba(0,0,0,.12)}
+  .reu.pasada{opacity:.95}.reu a.veracta{display:inline-block;margin-top:6px;font-weight:800;color:#1e7a46;text-decoration:none;font-size:13px}
+  .acta-opc{border:1px solid var(--linea);background:var(--tarjeta);border-radius:14px;padding:12px;margin:12px 0}
+  .acta-opc h3{margin:0 0 4px;font-size:15px}.acta-opc p{margin:0 0 8px;color:var(--suave);font-size:13px}
+  .comp{display:grid;grid-template-columns:2fr 1.3fr 1fr;gap:6px;margin-bottom:6px}.comp input{margin:0}
   .chip.rep{background:#eaf0f8;color:#3e5f84}.chip.apl{background:#fdf2e7;color:#a04d00}.chip.reunion{background:#efefef;color:#666}
   .festivo{background:var(--rosa);color:var(--rojo);font-weight:800;font-size:13px;border-radius:10px;padding:8px 12px;margin-bottom:8px}
   .leyenda{display:flex;flex-wrap:wrap;gap:6px 12px;margin:14px 2px 0;font-size:12px;color:var(--suave);font-weight:700}
@@ -374,6 +383,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   <div id="tNovedades" class="oculto"></div>
   <div id="tProgramar" class="oculto"></div>
   <div id="tFotos" class="oculto"></div>
+  <div id="tActa" class="oculto"></div>
   <div id="tHerr" class="oculto"></div>
   <div id="tLideres" class="oculto">
     <h2>Panel de líderes</h2>
@@ -436,7 +446,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   const norm=s=>String(s||'').toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
   let token='publico', usuario=null, info={publico:true}, correoPendiente='', vistaMes=null;
-  const PESTANAS=['tHerr','tInicio','tCalendario','tPlan','tRec','tSubir','tPanel','tNovedades','tProgramar','tFotos','tLideres'];
+  const PESTANAS=['tHerr','tInicio','tCalendario','tPlan','tRec','tSubir','tPanel','tNovedades','tProgramar','tFotos','tActa','tLideres'];
 
   const guardar=(k,v)=>{try{v==null?localStorage.removeItem(k):localStorage.setItem(k,v)}catch(e){}};
   const leer=k=>{try{return localStorage.getItem(k)}catch(e){return null}};
@@ -490,7 +500,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     return 'https://calendar.google.com/calendar/render?'+p.toString();
   }
   const ICO_CAL='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M12 11v6M9 14h6"/></svg>';
-  function chipEstado(e){const n=norm(e);return n==='REPROGRAMADO'?'<span class="chip rep">Reprogramado</span>':n==='APLAZADO'?'<span class="chip apl">Aplazado</span>':''}
+  function chipEstado(e){const n=norm(e);return n==='CERRADO CON ACTA'?'<span class="chip cerrado">✓ Cerrada con acta</span>':n==='REPROGRAMADO'?'<span class="chip rep">Reprogramado</span>':n==='APLAZADO'?'<span class="chip apl">Aplazado</span>':''}
   function detalle(ev){
     if(ev.tipo==='reunion') return `<b>${esc(hora12(ev.horaIni))}${ev.horaFin?' – '+esc(hora12(ev.horaFin)):''}</b> · ${esc(ev.ministerio)}${ev.lugar?' · '+esc(ev.lugar):''}`;
     return (ev.hasta?'Hasta el '+esc(fechaLarga(ev.hasta))+' · ':'')+(ev.responsable?'A cargo de <b>'+esc(ev.responsable)+'</b>':'Para toda la iglesia');
@@ -914,15 +924,29 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
         const coord=m.rol==='coordinador';
         html+=`<div class="min"><div class="min-cab"><b>${esc(m.nombre)}</b><span class="rol ${m.rol}">${coord?'Coordinas':'Equipo'}</span></div><div class="min-cuerpo">
           <h3>Equipo</h3><div class="personas">${m.coordinadores.map(c=>`<span class="persona c">★ ${esc(c)}</span>`).join('')}${m.equipo.map(c=>`<span class="persona">${esc(c)}</span>`).join('')}</div>
-          <h3>Próximas reuniones</h3>`;
+          `;
+        // Control mensual del coordinador: reunión del mes y actas pendientes
+        if(m.control){
+          html+=m.control.programada?`<div class="control ok"><span>✓ Ya programaste la reunión de ${esc(m.control.mes)}.</span></div>`
+            :`<div class="control falta"><span>⚠ Te falta programar la reunión de <b>${esc(m.control.mes)}</b>.</span><button data-prog="${i}">Programar</button></div>`;
+          m.control.sinActa.forEach(x=>{ html+=`<div class="control acta"><span>📝 Falta el acta de <b>${esc(x.titulo)}</b> · ${esc(fechaLarga(x.fecha))}</span><button data-acta="${esc(x.id)}">Hacer acta</button></div>` });
+        }
+        html+='<h3>Próximas reuniones</h3>';
         if(!m.reuniones.length) html+='<div class="t-det">No hay reuniones programadas.</div>';
-        m.reuniones.forEach(ev=>{
-          const notas=limpiarNotas(ev.notas);
-          html+=`<div class="reu"><div class="t-tit">${esc(ev.titulo)}${chipEstado(ev.estado)}</div>
+        const hoyK=clave(new Date());
+        const pintaReu=(ev,pasada)=>{
+          const notas=limpiarNotas(ev.notas), puedeActa=coord&&ev.puedeEditar&&ev.fecha<=hoyK;
+          html+=`<div class="reu${pasada?' pasada':''}"><div class="t-tit">${esc(ev.titulo)}${chipEstado(ev.estado)}</div>
             <div class="t-det"><b>${esc(cap(fechaLarga(ev.fecha)))}</b> · ${esc(hora12(ev.horaIni))}${ev.horaFin?' – '+esc(hora12(ev.horaFin)):''}${ev.lugar?' · '+esc(ev.lugar):''}${ev.modalidad?' · '+esc(cap(ev.modalidad.toLowerCase())):''}</div>
             ${notas?`<div class="t-not">${esc(notas)}</div>`:''}
-            ${coord&&ev.puedeEditar?`<div class="acciones"><button data-ed="${esc(ev.id)}">Cambiar</button><button class="peligro" data-can="${esc(ev.id)}">Cancelar</button></div>`:''}</div>`;
-        });
+            ${ev.acta?`<a class="veracta" href="${esc(ev.acta)}" target="_blank" rel="noopener">📄 Ver acta</a>`:''}
+            ${(coord&&ev.puedeEditar&&!pasada)||(puedeActa&&!ev.acta)?`<div class="acciones">
+              ${!pasada&&coord&&ev.puedeEditar?`<button data-ed="${esc(ev.id)}">Cambiar</button>`:''}
+              ${puedeActa&&!ev.acta?`<button data-acta="${esc(ev.id)}">📝 Acta</button>`:''}
+              ${!pasada&&coord&&ev.puedeEditar?`<button class="peligro" data-can="${esc(ev.id)}">Cancelar</button>`:''}</div>`:''}</div>`;
+        };
+        m.reuniones.forEach(ev=>pintaReu(ev,false));
+        if((m.pasadas||[]).length){ html+='<h3>Reuniones anteriores</h3>'; m.pasadas.forEach(ev=>pintaReu(ev,true)); }
         if(m.material){ html+='<h3>📚 Material</h3>';
           html+=m.material.length?'<div class="rec-caja">'+m.material.map(filaArchivo).join('')+'</div>':'<div class="t-det">Todavía no hay material.</div>';
           if(m.subeMaterial) html+=`<button class="boton-foto" data-mat="${i}">+ Subir material</button>`; }
@@ -934,13 +958,14 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       box.innerHTML=html;
       $('btnNombre').onclick=cambiarNombre;
       if($('btnHerr')) $('btnHerr').onclick=verHerr;
-      const todas=[].concat(...r.ministerios.map(m=>m.reuniones));
+      const todas=[].concat(...r.ministerios.map(m=>m.reuniones.concat(m.pasadas||[])));
       box.querySelectorAll('[data-mat]').forEach(b=>b.onclick=()=>verSubir([r.ministerios[+b.dataset.mat].nombre],'tPanel'));
       activarAudios(box);
       box.querySelectorAll('[data-foto]').forEach(b=>b.onclick=()=>verFotos(r.ministerios[+b.dataset.foto].nombre));
       box.querySelectorAll('[data-prog]').forEach(b=>b.onclick=()=>verFormulario(null,r.ministerios[+b.dataset.prog].nombre));
       box.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>verFormulario(todas.find(x=>x.id===b.dataset.ed)));
       box.querySelectorAll('[data-can]').forEach(b=>b.onclick=()=>confirmarCancelar(todas.find(x=>x.id===b.dataset.can)));
+      box.querySelectorAll('[data-acta]').forEach(b=>b.onclick=()=>{ const ev=todas.find(x=>x.id===b.dataset.acta); if(ev) verActa(ev) });
     }catch(e){box.innerHTML='<div class="vacio">No se pudo cargar: '+esc(e.message)+'</div>'}
   }
 
@@ -968,6 +993,48 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       catch(e){aviso('Error: '+e.message,true)} finally{cargando(0); if($('fGuardar'))$('fGuardar').disabled=false}
     };
     $('fVolver').onclick=()=>pestana('tPanel');
+  }
+  // ---------- acta de la reunión: llenarla en la app, o descargar la plantilla y subirla
+  function verActa(ev){
+    PESTANAS.forEach(t=>$(t).classList.toggle('oculto',t!=='tActa')); window.scrollTo(0,0);
+    const box=$('tActa'), comp=()=>`<div class="comp"><input placeholder="Compromiso"><input placeholder="Responsable"><input placeholder="Fecha"></div>`;
+    box.innerHTML=`<h2>Acta de la reunión</h2>
+      <p class="sub"><b>${esc(ev.titulo)}</b> · ${esc(ev.ministerio)}<br>${esc(cap(fechaLarga(ev.fecha)))} · ${esc(hora12(ev.horaIni))}</p>
+      <div class="acta-opc"><h3>✍️ Llenar el acta aquí</h3><p>Se crea con la plantilla de la iglesia, queda guardada en Drive y la reunión pasa a <b>Cerrada con acta</b>.</p>
+        <label>ASISTENTES (UNO POR RENGLÓN)</label><textarea id="aAsi" rows="4" placeholder="Juan Pérez&#10;María Gómez"></textarea>
+        <label>TEMAS TRATADOS (UNO POR RENGLÓN)</label><textarea id="aTem" rows="4"></textarea>
+        <label>DECISIONES (UNA POR RENGLÓN)</label><textarea id="aDec" rows="4"></textarea>
+        <label>COMPROMISOS</label><div id="aComp">${comp()}${comp()}</div>
+        <button class="boton-mini" id="aMas">+ Otro compromiso</button>
+        <label>PRÓXIMA REUNIÓN (FECHA Y HORA)</label><input id="aProx" placeholder="Ej: sábado 9 de enero, 7:00 p. m.">
+        <button class="boton" id="aGuardar">Guardar y cerrar acta</button></div>
+      <div class="acta-opc"><h3>📄 Prefiero llenarla en Word</h3><p>Descarga la plantilla con los datos de la reunión, llénala en el celular o en el computador y súbela aquí (Word, PDF o foto).</p>
+        <button class="boton sec" id="aPlant">⬇ Descargar plantilla</button>
+        <label class="subir" for="aArchivo" style="margin-top:10px">⬆ Subir acta<small>Word, PDF o foto del acta firmada</small></label>
+        <input id="aArchivo" type="file" accept=".doc,.docx,.pdf,image/*,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="oculto"></div>
+      <button class="boton sec" id="aVolver">Volver</button>`;
+    const listo=r=>{ aviso(r.msg); try{localStorage.removeItem('c_panel_'+quien())}catch(e){} pestana('tPanel') };
+    $('aMas').onclick=()=>$('aComp').insertAdjacentHTML('beforeend',comp());
+    $('aVolver').onclick=()=>pestana('tPanel');
+    $('aGuardar').onclick=async()=>{
+      const cont={asistentes:$('aAsi').value,temas:$('aTem').value,decisiones:$('aDec').value,proxima:$('aProx').value,
+        compromisos:[...$('aComp').querySelectorAll('.comp')].map(f=>[...f.querySelectorAll('input')].map(i=>i.value.trim())).filter(c=>c.some(String))};
+      $('aGuardar').disabled=true; cargando(1);
+      try{ const r=await llamar('appActaCrear',token,ev.id,cont); if(!revisar(r))return; listo(r) }
+      catch(e){aviso('Error: '+e.message,true)} finally{cargando(0); if($('aGuardar'))$('aGuardar').disabled=false}
+    };
+    $('aPlant').onclick=async()=>{ cargando(1);
+      try{ const r=await llamar('appActaPlantilla',token,ev.id); if(!revisar(r))return;
+        const bin=atob(r.datos), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+        descargar(new Blob([u8],{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}),r.nombre);
+        aviso('Plantilla descargada. Cuando la llenes, súbela con «Subir acta».') }
+      catch(e){aviso('Error: '+e.message,true)} finally{cargando(0)} };
+    $('aArchivo').onchange=async e=>{ const arch=e.target.files[0]; e.target.value=''; if(!arch)return;
+      if(arch.size>20*1048576){aviso('El archivo pasa de 20 MB.',true);return}
+      cargando(1);
+      try{ const datos=await new Promise((ok,mal)=>{const fr=new FileReader();fr.onload=()=>ok(fr.result);fr.onerror=()=>mal(new Error('No se pudo leer el archivo'));fr.readAsDataURL(arch)});
+        const r=await llamar('appActaSubir',token,ev.id,{nombre:arch.name,mime:arch.type,datos}); if(!revisar(r))return; listo(r) }
+      catch(x){aviso('Error: '+x.message,true)} finally{cargando(0)} };
   }
   function confirmarCancelar(ev){
     $('mTitulo').textContent='¿Cancelar la reunión?';
@@ -1227,7 +1294,7 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
   }
 
   // ---------- novedades
-  const ACC={'Subió fotos':['var(--naranja)','📷'],'Programó':['var(--oliva)','+'],'Cambió':['var(--azul)','✎'],'Reprogramó':['var(--azul)','↻'],'Canceló':['var(--rojo)','×'],'Equipo actualizado':['var(--amarillo)','★']};
+  const ACC={'Subió fotos':['var(--naranja)','📷'],'Programó':['var(--oliva)','+'],'Cambió':['var(--azul)','✎'],'Reprogramó':['var(--azul)','↻'],'Canceló':['var(--rojo)','×'],'Equipo actualizado':['var(--amarillo)','★'],'Cerró acta':['#1e7a46','📝'],'Subió acta':['#1e7a46','📄']};
   function hace(iso){ const d=new Date(iso), s=(Date.now()-d)/1000;
     if(s<3600) return 'Hace '+Math.max(1,Math.round(s/60))+' min'; if(s<86400) return 'Hace '+Math.round(s/3600)+' h';
     if(s<7*86400){const n=Math.round(s/86400);return n<=1?'Ayer':'Hace '+n+' días'} return d.getDate()+' de '+MESES[d.getMonth()]; }
