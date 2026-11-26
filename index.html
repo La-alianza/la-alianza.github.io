@@ -630,11 +630,21 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       listo=dy>95; ind.classList.toggle('listo',listo) },{passive:true});
     document.addEventListener('touchend',()=>{ if(y0===null)return; y0=null;
       if(listo){ ind.classList.add('cargando'); ind.style.transform='translate(-50%,46px)'; ind.innerHTML='<span>↻</span>';
-        try{ Object.keys(localStorage).filter(k=>/^c_/.test(k)).forEach(k=>localStorage.removeItem(k)) }catch(e){}
-        setTimeout(()=>location.reload(),250) }
+        refrescar().finally(()=>setTimeout(()=>{ ind.classList.remove('ver','listo','cargando'); ind.style.transform=''; ind.innerHTML='<span>↓</span>' },300)) }
       else { ind.style.transform=''; ind.classList.remove('ver','listo') }
       listo=false });
   })();
+
+  // Recarga rápida: se queda mostrando lo que ya hay y trae lo nuevo de la pestaña abierta (sin reiniciar la app)
+  async function refrescar(){
+    try{ navigator.serviceWorker&&navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{}) }catch(e){}
+    const id=PESTANAS.find(t=>!$(t).classList.contains('oculto'));
+    if(['tProgramar','tActa','tFotos','tSubir','tLideres','tHerr'].indexOf(id)>=0) return;   // formularios: no se borra lo escrito
+    Object.keys(mesVisto).forEach(k=>delete mesVisto[k]); Object.keys(servMem).forEach(k=>delete servMem[k]);
+    const fn={tInicio:verInicio,tCalendario:verCalendario,tPlan:verPlan,tPanel:verPanel,tNovedades:verNovedades,tRec:verRecursos}[id];
+    if(!fn) return;
+    await Promise.race([Promise.resolve().then(()=>fn()).catch(()=>{}),new Promise(z=>setTimeout(z,8000))]);
+  }
 
   // ---------- calendario
   const mesEnCurso={};                       // evita pedir el mismo mes varias veces a la vez
