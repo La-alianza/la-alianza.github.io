@@ -195,6 +195,13 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .leyenda span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--c);margin-right:5px;vertical-align:0}
 
   /* ---------- calendario */
+  #ptr{position:fixed;left:50%;top:6px;z-index:60;width:38px;height:38px;border-radius:50%;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.2);
+    display:flex;align-items:center;justify-content:center;transform:translate(-50%,-60px);opacity:0;transition:opacity .15s;pointer-events:none;color:var(--naranja);font-weight:900;font-size:18px}
+  #ptr.ver{opacity:1}#ptr.listo{background:var(--naranja);color:#fff}#ptr.cargando span{animation:gira .8s linear infinite}
+  @keyframes gira{to{transform:rotate(360deg)}}
+  .plan-acc{display:flex;gap:8px;margin:0 0 10px;flex-wrap:wrap}.plan-acc .boton{flex:1;min-width:160px;margin:0;padding:10px;font-size:14px}
+  .susc{display:flex;flex-direction:column;gap:8px;margin-top:12px}.susc .boton{margin:0;text-align:center;text-decoration:none;display:block}
+  button.agregar{border:0;font-family:inherit;cursor:pointer}
   .vistas{display:flex;background:var(--linea);border-radius:12px;padding:3px;margin:0 0 10px;gap:3px}
   .vistas button{flex:1;border:0;background:none;border-radius:9px;padding:8px 0;font:inherit;font-size:14px;font-weight:700;color:var(--suave)}
   .vistas button.on{background:var(--tarjeta);color:var(--texto);box-shadow:0 1px 3px rgba(0,0,0,.12)}
@@ -503,6 +510,20 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     if(/SANTIFICACION|BAUTISMO|RETIRO|AYUNO|ORACION|VIGILIA/.test(t))return CATS[1][1];
     return CATS[4][1];
   }
+  // Agrega TODO el calendario de la iglesia (se actualiza solo). Para quien no entra con correo de líder.
+  function verSuscribir(){
+    const id=info.calPlan||'';
+    if(!id){ aviso('El calendario de la iglesia todavía no está disponible.',true); return }
+    const g='https://calendar.google.com/calendar/r?cid='+encodeURIComponent(id);
+    const ics='webcal://calendar.google.com/calendar/ical/'+encodeURIComponent(id)+'/public/basic.ics';
+    const ios=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+    $('mTitulo').textContent='Agregar el calendario de la iglesia';
+    $('mTexto').innerHTML='Se agregan <b>todas</b> las actividades del plan operativo y se actualizan solas cuando la iglesia hace cambios.'
+      +`<span class="susc"><a class="boton${ios?'':' sec'}" href="${esc(ics)}">📱 Calendario del iPhone</a><a class="boton${ios?' sec':''}" target="_blank" href="${esc(g)}">📅 Google Calendar</a></span>`;
+    $('modal').classList.add('on');
+    $('mSi').style.display='none'; $('mNo').textContent='Cerrar';
+    $('mNo').onclick=()=>{ $('modal').classList.remove('on'); $('mSi').style.display=''; $('mNo').textContent='No' };
+  }
   function enlaceCalendario(ev){
     const f=ev.fecha.replace(/-/g,'');
     let dates;
@@ -570,11 +591,12 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
         html+=`<div class="destacado"><div class="fechaG" style="--c:${color(sig)}"><span>${DIA3[d.getDay()]}</span><b>${d.getDate()}</b><span>${MES3[d.getMonth()]}</span></div>
           <div class="col"><div class="eti">${esc(faltan(sig.fecha))} · Próxima actividad</div><div class="tit">${esc(sig.titulo)}</div>
           <div class="det">${detalle(sig)}</div>
-          <a class="agregar" target="_blank" href="${esc(enlaceCalendario(sig))}">${ICO_CAL}Agregar a mi calendario</a></div></div>`; }
+          ${esLider()?'':`<button class="agregar" id="btnSuscribir">${ICO_CAL}Agregar el calendario de la iglesia</button>`}</div></div>`; }
       (r.anuncios||[]).forEach(a=>{ html+=`<div class="anuncio"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg></div>
         <div class="col">${a.titulo?`<b>${esc(a.titulo)}</b>`:''}${a.mensaje?`<p>${esc(a.mensaje)}</p>`:''}${a.enlace?`<a target="_blank" href="${esc(a.enlace)}">Ver más →</a>`:''}</div></div>` });
       if(r.versiculo&&r.versiculo.texto) html+=`<a class="vdd" target="_blank" href="${esc(r.versiculo.url)}"><div class="vdd-eti">Versículo del día</div>
         <div class="vdd-txt">${esc(r.versiculo.texto)}</div><div class="vdd-ref">${esc(r.versiculo.ref)}${r.versiculo.version?' · '+esc(r.versiculo.version):''}<span>Leer ›</span></div></a>`;
+      setTimeout(()=>{ if($('btnSuscribir')) $('btnSuscribir').onclick=verSuscribir },0);
       html+=`<button class="btn-dev" id="irDev"><span class="btn-dev-ic">🎧</span><span><b>Devocionales</b><small>Escucha el devocional de hoy</small></span><i>›</i></button>`;
       html+='</div><div class="ini-l"><h3>'+(r.extendido?'Próximas actividades':'Lo que viene')+'</h3>';
       const porDia={}; evs.forEach(ev=>{ if(ev!==sig)(porDia[ev.fecha]=porDia[ev.fecha]||[]).push(ev) });
@@ -595,6 +617,24 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       box.innerHTML=html; $('irCal').onclick=()=>pestana('tCalendario'); $('irDev').onclick=()=>pestana('tRec');
     }
   }
+
+  // ---------- deslizar hacia abajo (estando arriba del todo) para recargar con lo último
+  (function(){
+    const ind=document.createElement('div'); ind.id='ptr'; ind.innerHTML='<span>↓</span>'; document.body.appendChild(ind);
+    let y0=null, dy=0, listo=false;
+    const arriba=()=>(window.scrollY||document.documentElement.scrollTop)<=0;
+    document.addEventListener('touchstart',e=>{ if(e.touches.length!==1||!arriba()||$('modal').classList.contains('on')){y0=null;return} y0=e.touches[0].clientY; dy=0 },{passive:true});
+    document.addEventListener('touchmove',e=>{ if(y0===null||e.touches.length!==1)return; dy=e.touches[0].clientY-y0;
+      if(dy<=0||!arriba()){ ind.style.transform=''; ind.classList.remove('ver'); return }
+      const t=Math.min(dy,130); ind.classList.add('ver'); ind.style.transform=`translate(-50%,${t*0.6}px) rotate(${t*2.4}deg)`;
+      listo=dy>95; ind.classList.toggle('listo',listo) },{passive:true});
+    document.addEventListener('touchend',()=>{ if(y0===null)return; y0=null;
+      if(listo){ ind.classList.add('cargando'); ind.style.transform='translate(-50%,46px)'; ind.innerHTML='<span>↻</span>';
+        try{ Object.keys(localStorage).filter(k=>/^c_/.test(k)).forEach(k=>localStorage.removeItem(k)) }catch(e){}
+        setTimeout(()=>location.reload(),250) }
+      else { ind.style.transform=''; ind.classList.remove('ver','listo') }
+      listo=false });
+  })();
 
   // ---------- calendario
   const mesEnCurso={};                       // evita pedir el mismo mes varias veces a la vez
@@ -714,7 +754,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       g+='</div>'+leyenda();
       const lista=k=>{ const evs=porDia[k]||[]; let h=`<h3>${esc(fechaLarga(k))}</h3>`;
         if(r.festivos[k]) h+=`<div class="festivo">Festivo · ${esc(r.festivos[k])}</div>`;
-        h+=evs.length?evs.map(ev=>tarjeta(ev)+`<div style="margin:-2px 0 12px"><a class="agregar" style="margin-top:0" target="_blank" href="${esc(enlaceCalendario(ev))}">${ICO_CAL}Agregar a mi calendario</a></div>`).join(''):'<div class="vacio" style="padding:14px">Sin actividades este día.</div>';
+        h+=evs.length?evs.map(ev=>tarjeta(ev)+(esLider()||ev.tipo==='reunion'?'':`<div style="margin:-2px 0 12px"><a class="agregar" style="margin-top:0" target="_blank" href="${esc(enlaceCalendario(ev))}">${ICO_CAL}Agregar a mi calendario</a></div>`)).join(''):'<div class="vacio" style="padding:14px">Sin actividades este día.</div>';
         if(esLider()){ h+='<div id="servBox"></div>'; setTimeout(()=>verServidores(k),0) }
         return h };
       $('calCuerpo').innerHTML='<div class="cal-a">'+g+'</div><div id="calLista">'+lista(vistaMes.sel)+'</div>';
@@ -778,9 +818,16 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     const box=$('tPlan');
     const anios=[...new Set(r.plan.map(p=>p.fecha.slice(0,4)))];
     box.innerHTML=`<h2>Plan operativo ${esc(anios.join(' – '))}</h2><p class="sub">Todas las actividades de la iglesia en el año.</p>
+      <div class="plan-acc"><button class="boton sec" id="plPdf">🖨 Imprimir plan operativo (PDF)</button>${esLider()?'':'<button class="boton sec" id="plSusc">📅 Agregar a mi calendario</button>'}</div>
       <input id="plBusca" class="buscar" placeholder="Buscar actividad o ministerio…" value="${esc(planBusca)}">
       <div class="filtros"><button data-f="todo">Todo</button>${CATS.map((c,i)=>`<button data-f="${i}" style="--c:${c[1]}"><i></i>${c[0]}</button>`).join('')}</div>
       <div id="plLista"></div>`;
+    $('plPdf').onclick=async()=>{ cargando(1); $('plPdf').disabled=true;
+      try{ const x=await llamar('appPlanPdf',token); if(!revisar(x))return;
+        const bin=atob(x.datos), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+        descargar(new Blob([u8],{type:'application/pdf'}),x.nombre) }
+      catch(e){aviso('Error: '+e.message,true)} finally{cargando(0); if($('plPdf'))$('plPdf').disabled=false} };
+    if($('plSusc')) $('plSusc').onclick=verSuscribir;
     const pintarLista=()=>{
       box.querySelectorAll('.filtros button').forEach(b=>b.classList.toggle('on',b.dataset.f===String(planFiltro)));
       const q=norm(planBusca);
@@ -991,6 +1038,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       <label>MINISTERIO</label><select id="fMin" ${ev?'disabled':''}>${mins.map(m=>`<option ${norm(m)===norm(v.ministerio)?'selected':''}>${esc(m)}</option>`).join('')}</select>
       <label>NOMBRE DE LA REUNIÓN</label><input id="fTit" value="${esc(v.titulo)}" placeholder="Ej: Ensayo general">
       <label>FECHA</label><input id="fFec" type="date" value="${esc(v.fecha)}">
+      ${ev?'':`<label>¿SE REPITE?</label><select id="fRep"></select><div class="t-det" id="fRepTxt" style="margin:-4px 0 8px"></div>`}
       <div class="fila"><div><label>HORA INICIO</label><input id="fHi" type="time" value="${esc(v.horaIni)}"></div>
         <div><label>HORA FIN</label><input id="fHf" type="time" value="${esc(v.horaFin)}"></div></div>
       <label>LUGAR O ENLACE</label><input id="fLug" value="${esc(v.lugar)}" placeholder="Ej: Salón 2 o enlace de Meet">
@@ -1000,12 +1048,19 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       <button class="boton sec" id="fVolver">Volver</button>`;
     $('fGuardar').onclick=async()=>{
       const datos={id:ev?ev.id:'',ministerio:$('fMin').value,titulo:$('fTit').value,fecha:$('fFec').value,horaIni:$('fHi').value,
-                   horaFin:$('fHf').value,lugar:$('fLug').value,modalidad:$('fMod').value,notas:$('fNot').value};
+                   horaFin:$('fHf').value,lugar:$('fLug').value,modalidad:$('fMod').value,notas:$('fNot').value,repetir:$('fRep')?$('fRep').value:''};
       $('fGuardar').disabled=true; cargando(1);
       try{ const r=await llamar('appGuardarReunion',token,datos); if(!revisar(r))return; aviso(r.msg); pestana('tPanel') }
       catch(e){aviso('Error: '+e.message,true)} finally{cargando(0); if($('fGuardar'))$('fGuardar').disabled=false}
     };
     $('fVolver').onclick=()=>pestana('tPanel');
+    // Repetir cada mes hasta diciembre: «el 2.º sábado» o «el día 14»
+    const opcRep=()=>{ if(!$('fRep'))return; const val=$('fRep').value, f=$('fFec').value; if(!f){$('fRep').innerHTML='<option value="">Solo esta vez</option>';return}
+      const d=deClave(f), n=Math.ceil(d.getDate()/7), ord=n>=5?'último':['1.er','2.º','3.er','4.º'][n-1], dia=DIAS[d.getDay()].toLowerCase(), meses=11-d.getMonth();
+      $('fRep').innerHTML='<option value="">Solo esta vez</option>'+(meses>0?`<option value="semana">Cada mes, el ${ord} ${dia} (hasta diciembre)</option><option value="dia">Cada mes, el día ${d.getDate()} (hasta diciembre)</option>`:'');
+      if([...$('fRep').options].some(o=>o.value===val)) $('fRep').value=val;
+      $('fRepTxt').textContent=$('fRep').value?'Se crearán '+(meses+1)+' reuniones, una por mes, de '+MESES[d.getMonth()]+' a diciembre. Cada una se puede cambiar o cancelar después.':'' };
+    if($('fRep')){ opcRep(); $('fFec').onchange=opcRep; $('fRep').onchange=opcRep }
   }
   // ---------- acta de la reunión: 1) evaluar compromisos anteriores 2) asistencia 3) escribirla aquí o subirla
   function verActa(ev,equipo,abiertos){
