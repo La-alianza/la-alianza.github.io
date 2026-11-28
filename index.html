@@ -79,6 +79,20 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .serv-cab{font-size:12px;font-weight:900;letter-spacing:.06em;text-transform:uppercase;color:var(--naranja);margin:26px 2px 10px;display:flex;align-items:center;gap:8px}
   .serv-cab:before{content:"🙋";font-size:15px}
   .serv-nota{background:#F1EAF8;color:#4b2a78;border-radius:12px;padding:10px 12px;font-weight:800;font-size:13px;margin-bottom:10px}
+  .serv-lista{display:flex;flex-direction:column;gap:8px}
+  .sv{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;overflow:hidden}
+  .sv-t{width:100%;display:flex;align-items:center;gap:10px;border:0;background:none;padding:12px 14px;font:inherit;text-align:left;cursor:pointer;color:var(--texto)}
+  .sv-t i{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+  .sv-t span{flex:1;font-weight:800;font-size:14px;letter-spacing:.01em;text-transform:uppercase}
+  .sv-t small{color:var(--suave);font-size:12px;font-weight:600}
+  .sv-t b{color:var(--suave);font-size:20px;line-height:1;transition:transform .15s}
+  .sv.abierto .sv-t b{transform:rotate(90deg)}
+  .sv-c{display:none;padding:0 14px 8px 34px}.sv.abierto .sv-c{display:block}
+  .rota{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 0}
+  .rota div{background:var(--tarjeta);border:1px solid var(--linea);border-radius:14px;padding:10px 12px;border-left:4px solid var(--naranja)}
+  .rota div+div{border-left-color:#D9B40F}
+  .rota span{display:block;font-size:11px;font-weight:800;color:var(--suave);text-transform:uppercase;letter-spacing:.04em}
+  .rota b{display:block;font-size:15px;margin-top:3px}
   .serv-grid{display:grid;grid-template-columns:1fr;gap:10px}
   .serv-card{background:#fff;border:1px solid var(--linea);border-radius:14px;padding:10px 14px 8px;border-top:4px solid var(--c)}
   .serv-area{font-size:12px;font-weight:900;color:var(--c);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
@@ -167,6 +181,10 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   .t-det b{color:var(--gris)}
   .t-not{font-size:13px;color:var(--gris);margin-top:6px;background:#faf7f1;border-radius:8px;padding:6px 8px}
   .chip{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:20px;margin-left:6px;vertical-align:1px}
+  .pfila.reg{background:#EAF6EC}.pfila.nac{background:#E8F0FA}
+  .plan-ley{margin:0 0 12px}.plan-ley em{font-style:normal;font-size:12px;font-weight:700;color:var(--suave);padding:2px 8px;border-radius:6px}
+  .plan-ley .alc-r{background:#EAF6EC}.plan-ley .alc-n{background:#E8F0FA}
+  @media print{.pfila.reg,.pfila.nac{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
   .chip.cerrado{background:#d9f2e3;color:#1e7a46}
   .control{border-radius:12px;padding:10px 12px;margin:0 0 10px;font-size:14px;display:flex;align-items:center;gap:10px}
   .control.falta{background:#fff4e0;border:1px solid #f3cf8e;color:#8a5300}.control.ok{background:#e9f7ef;border:1px solid #bfe5cd;color:#1e7a46}
@@ -500,18 +518,22 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   const fechaLarga=k=>{const d=deClave(k);return DIAS[d.getDay()]+' '+d.getDate()+' de '+MESES[d.getMonth()]};
   const hora12=h=>{if(!h)return'';let[a,m]=h.split(':').map(Number);const p=a>=12?'p. m.':'a. m.';a=a%12||12;return a+':'+String(m).padStart(2,'0')+' '+p};
   const faltan=k=>{const n=Math.round((deClave(k)-deClave(clave(new Date())))/864e5);return n<=0?'Hoy':n===1?'Mañana':'En '+n+' días'};
-  const CATS=[['Cultos y fijos','var(--pizarra)'],['Vida espiritual','var(--amarillo)'],['Evangelismo','var(--oliva)'],['Comunión','var(--naranja)'],['Otros','var(--azul)']];
+  // Tipos de actividad (con su color) y alcance (columna ALCANCE de la hoja: Local, Regional o Nacional)
+  const CATS=[['Servicios','var(--pizarra)'],['Evangelismo','var(--oliva)'],['Almuerzos','var(--naranja)']];
+  const COLOR_OTRA='var(--azul)';
+  const ALCANCES=[['LOCAL','Local'],['REGIONAL','Regional'],['NACIONAL','Nacional']];
   function color(ev){
     if(ev.tipo==='reunion')return'#9a9a9a';
     const t=norm(ev.titulo);
     if(ev.fijo)return CATS[0][1];
-    if(/EVANGEL|IMPACTO/.test(t))return CATS[2][1];
-    if(/ALMUERZO|COOPERATIV/.test(t))return CATS[3][1];
-    if(/SANTIFICACION|BAUTISMO|RETIRO|AYUNO|ORACION|VIGILIA/.test(t))return CATS[1][1];
-    return CATS[4][1];
+    if(/EVANGEL|IMPACTO/.test(t))return CATS[1][1];
+    if(/ALMUERZO|COOPERATIV/.test(t))return CATS[2][1];
+    return COLOR_OTRA;
   }
+  const chipAlcance=ev=>ev.alcance&&ev.alcance!=='LOCAL'?`<span class="chip alc">${ev.alcance==='NACIONAL'?'Nacional':'Regional'}</span>`:'';
   // Agrega TODO el calendario de la iglesia (se actualiza solo). Para quien no entra con correo de líder.
   function verSuscribir(){
+    usoMarca('Agregar calendario');
     const id=info.calPlan||'';
     if(!id){ aviso('El calendario de la iglesia todavía no está disponible.',true); return }
     const g='https://calendar.google.com/calendar/r?cid='+encodeURIComponent(id);
@@ -549,7 +571,28 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
 
   // ---------- navegación
   document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>pestana(b.dataset.t));
+  // ---------- estadísticas de uso (anónimas para quien no entra con correo)
+  const NOM_SEC={tInicio:'Inicio',tCalendario:'Calendario',tPlan:'Plan',tPanel:'Mi ministerio',tNovedades:'Novedades',tRec:'Devocionales',
+    tProgramar:'Programar reunión',tActa:'Acta',tFotos:'Fotos',tHerr:'Herramientas',tLideres:'Ingreso'};
+  const usoSec=new Set(); let usoFila=0;
+  const usoDev=(()=>{ let d=leer('abDev'); if(!d){ d=Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); guardar('abDev',d) } return d })();
+  function usoMarca(n){ if(n) usoSec.add(n) }
+  async function usoAbrir(){
+    const ua=navigator.userAgent, disp=/iphone|ipad|ipod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)?'iPhone':/android/i.test(ua)?'Android':'Computador';
+    const inst=!!(window.matchMedia&&matchMedia('(display-mode: standalone)').matches||navigator.standalone);
+    try{ const r=await llamar('appUso',token,{ev:'abrir',disp,inst,dev:usoDev}); if(r&&r.fila) usoFila=r.fila }catch(e){}
+  }
+  function usoEnviar(){
+    if(!usoFila||!usoSec.size) return;
+    const d={ev:'secciones',fila:usoFila,dev:usoDev,secciones:[...usoSec]}; usoSec.clear();
+    try{ if(window.API_URL&&navigator.sendBeacon){ navigator.sendBeacon(window.API_URL,new Blob([JSON.stringify({fn:'appUso',args:[token,d]})],{type:'text/plain;charset=utf-8'})); return } }catch(e){}
+    llamar('appUso',token,d).catch(()=>{});
+  }
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') usoEnviar() });
+  window.addEventListener('pagehide',usoEnviar);
+
   function pestana(id){
+    usoMarca(NOM_SEC[id]);
     PESTANAS.forEach(t=>$(t).classList.toggle('oculto',t!==id));
     document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===id));
     window.scrollTo(0,0);
@@ -815,7 +858,7 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
   }
 
   // ---------- plan operativo: todo el calendario general por meses
-  let planFiltro='todo', planBusca='';
+  let planFiltro='todo', planAlcance='todo', planBusca='';
   async function verPlan(){
     const box=$('tPlan'), k='c_plan', previo=leerJ(k);
     if(previo&&previo.ok) pintarPlan(previo,true); else box.innerHTML='<h2>Plan operativo</h2><div class="vacio">Cargando…</div>';
@@ -830,26 +873,25 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     box.innerHTML=`<h2>Plan operativo ${esc(anios.join(' – '))}</h2><p class="sub">Todas las actividades de la iglesia en el año.</p>
       <div class="plan-acc"><button class="boton sec" id="plPdf">🖨 Imprimir plan operativo (PDF)</button>${esLider()?'':'<button class="boton sec" id="plSusc">📅 Agregar a mi calendario</button>'}</div>
       <input id="plBusca" class="buscar" placeholder="Buscar actividad o ministerio…" value="${esc(planBusca)}">
-      <div class="filtros"><button data-f="todo">Todo</button>${CATS.map((c,i)=>`<button data-f="${i}" style="--c:${c[1]}"><i></i>${c[0]}</button>`).join('')}</div>
+      <div class="leyenda plan-ley">${CATS.map(c=>`<span style="--c:${c[1]}">${c[0]}</span>`).join('')}<em class="alc-r">Regional</em><em class="alc-n">Nacional</em></div>
       <div id="plLista"></div>`;
-    $('plPdf').onclick=async()=>{ cargando(1); $('plPdf').disabled=true;
+    $('plPdf').onclick=async()=>{ usoMarca('PDF del plan'); cargando(1); $('plPdf').disabled=true;
       try{ const x=await llamar('appPlanPdf',token); if(!revisar(x))return;
         const bin=atob(x.datos), u8=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
         descargar(new Blob([u8],{type:'application/pdf'}),x.nombre) }
       catch(e){aviso('Error: '+e.message,true)} finally{cargando(0); if($('plPdf'))$('plPdf').disabled=false} };
     if($('plSusc')) $('plSusc').onclick=verSuscribir;
     const pintarLista=()=>{
-      box.querySelectorAll('.filtros button').forEach(b=>b.classList.toggle('on',b.dataset.f===String(planFiltro)));
       const q=norm(planBusca);
-      const items=r.plan.filter(p=>(planFiltro==='todo'||catDe(p)===+planFiltro)&&(!q||norm(p.titulo+' '+p.responsable).indexOf(q)>=0));
+      const items=r.plan.filter(p=>(planFiltro==='todo'||catDe(p)===+planFiltro)&&(planAlcance==='todo'||(p.alcance||'LOCAL')===planAlcance)&&(!q||norm(p.titulo+' '+p.responsable).indexOf(q)>=0));
       const porMes={}; items.forEach(p=>(porMes[p.fecha.slice(0,7)]=porMes[p.fecha.slice(0,7)]||[]).push(p));
       const meses=Object.keys(porMes).sort();
       let h='<div class="planMeses">';
-      if(!meses.length) h+='<div class="vacio">No hay actividades con ese filtro.</div>';
+      if(!meses.length) h+='<div class="vacio">No hay actividades con esa búsqueda.</div>';
       meses.forEach(m=>{ const [a,mm]=m.split('-').map(Number), pasado=m<r.hoy.slice(0,7);
         h+=`<section class="pmes${pasado?' pasado':''}" id="pm-${m}"><div class="pmes-cab"><b>${cap(MESES[mm-1])}</b><span>${a} · ${porMes[m].length} actividad${porMes[m].length>1?'es':''}</span></div>`;
         porMes[m].forEach(p=>{ const d=deClave(p.fecha), fest=r.festivos[p.fecha], viejo=(p.hasta||p.fecha)<r.hoy;
-          h+=`<div class="pfila${viejo?' viejo':''}${p.fecha===r.hoy?' hoy':''}"><div class="pdia"><b>${d.getDate()}</b><span>${DIA3[d.getDay()]}</span></div>
+          h+=`<div class="pfila${viejo?' viejo':''}${p.fecha===r.hoy?' hoy':''}${p.alcance==='REGIONAL'?' reg':p.alcance==='NACIONAL'?' nac':''}"><div class="pdia"><b>${d.getDate()}</b><span>${DIA3[d.getDay()]}</span></div>
             <div class="pbar" style="--c:${color(p)}"></div><div class="col"><div class="t-tit">${esc(p.titulo)}${chipEstado(p.estado)}</div>
             <div class="t-det">${p.hasta?'Hasta el '+esc(fechaLarga(p.hasta))+' · ':''}${p.responsable?esc(p.responsable):'Toda la iglesia'}${fest?' · <span style="color:var(--rojo)">Festivo</span>':''}</div></div></div>` });
         h+='</section>' });
@@ -857,7 +899,6 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
       $('plLista').innerHTML=h;
     };
     pintarLista();
-    box.querySelectorAll('.filtros button').forEach(b=>b.onclick=()=>{planFiltro=b.dataset.f;pintarLista()});
     $('plBusca').oninput=e=>{planBusca=e.target.value;pintarLista()};
     if(irAHoy){ const m=$('pm-'+r.hoy.slice(0,7)); if(m) setTimeout(()=>window.scrollTo({top:m.getBoundingClientRect().top+window.scrollY-(innerWidth>=900?80:70)}),30) }
   }
@@ -878,27 +919,44 @@ if('serviceWorker' in navigator) addEventListener('load',()=>navigator.serviceWo
     try{ const r=await llamar('appServidores',token,k); if(!r||!r.ok){ if(r&&r.sesion)revisar(r); return }
       servMem[dom]=r; guardarJ(key,r); pintar(r) }catch(e){} finally{ delete servEnCurso[dom] }
   }
+  // Nombres que se muestran (en la hoja pueden seguir como están)
+  function nombreArea(a){
+    if(/comunicaciones/i.test(a)) return 'PROYECCIÓN';
+    const m=String(a).match(/^servicio\s+(.*)$/i); if(m) return 'SERVIDORES '+m[1].toUpperCase();
+    return a;
+  }
+  const servAbiertos=new Set((()=>{ try{return JSON.parse(leer('abServAb')||'[]')}catch(e){return[]} })());
   function htmlServidores(r){
     const d=deClave(r.domingo);
-    let h=`<div class="serv-cab">Servidores · fin de semana del ${d.getDate()} de ${MESES[d.getMonth()]}</div>`;
-    if(!r.items.length) return h+'<div class="vacio" style="padding:12px">Todavía no hay servidores programados para ese fin de semana.</div>';
+    let h=`<div class="serv-cab">Servidores · fin de semana del ${d.getDate()} de ${MESES[d.getMonth()]}</div>`, rota='';
+    if(r.rotacion&&(r.rotacion.cooperativa||r.rotacion.vigilia)){
+      const vf=r.rotacion.vigiliaFecha?deClave(r.rotacion.vigiliaFecha):null;
+      rota=`<div class="rota"><div><span>Cooperativa de ${esc(r.rotacion.mes)}</span><b>${esc(r.rotacion.cooperativa||'—')}</b></div>
+        <div><span>Vigilia de ${esc(r.rotacion.mes)}${vf?' · '+DIA3[vf.getDay()].toLowerCase()+' '+vf.getDate():''}</span><b>${esc(r.rotacion.vigilia||'—')}</b></div></div>`;
+    }
+    if(!r.items.length) return h+'<div class="vacio" style="padding:12px">Todavía no hay servidores programados para ese fin de semana.</div>'+rota;
     const orden=[], grupos={};
     r.items.forEach(x=>{ if(!grupos[x.area]){grupos[x.area]=[];orden.push(x.area)} grupos[x.area].push(x) });
     if(grupos['Nota']) h+=grupos['Nota'].map(x=>`<div class="serv-nota">📌 ${esc(x.s||x.nota)}</div>`).join('');
-    h+='<div class="serv-grid">';
+    h+='<div class="serv-lista">';
     orden.filter(a=>a!=='Nota').forEach(a=>{
-      const col=SERV_COL[a]||(/^Aseo/.test(a)?'#7F8219':'#555');
-      h+=`<div class="serv-card" style="--c:${col}"><div class="serv-area">${esc(a)}</div>`;
+      const col=SERV_COL[a]||(/^Aseo/.test(a)?'#7F8219':'#555'), n=grupos[a].filter(x=>x.s).reduce((t,x)=>t+String(x.s).split(',').filter(z=>z.trim()).length,0);
+      h+=`<div class="sv${servAbiertos.has(a)?' abierto':''}" style="--c:${col}" data-a="${esc(a)}"><button class="sv-t"><i></i><span>${esc(nombreArea(a))}</span><small>${n?n+(n>1?' personas':' persona'):''}</small><b>›</b></button><div class="sv-c">`;
       let gAnt='';
       grupos[a].forEach(x=>{
         if(x.grupo&&x.grupo!==gAnt){ h+=`<div class="serv-grupo">${esc(x.grupo)}</div>`; gAnt=x.grupo }
         if(!x.s&&!x.nota) return;
         h+=`<div class="serv-fila">${x.rol?`<span class="serv-rol">${esc(x.rol)}</span>`:''}<span class="serv-nom">${esc(x.s)}${x.nota?`<em>${esc(x.nota)}</em>`:''}</span></div>`;
       });
-      h+='</div>';
+      h+='</div></div>';
     });
-    return h+'</div>';
+    setTimeout(()=>document.querySelectorAll('#servBox .sv-t').forEach(b=>b.onclick=()=>{
+      const c=b.parentNode, a=c.dataset.a; c.classList.toggle('abierto');
+      if(c.classList.contains('abierto')) servAbiertos.add(a); else servAbiertos.delete(a);
+      guardar('abServAb',JSON.stringify([...servAbiertos])) }),0);
+    return h+'</div>'+rota;
   }
+
 
   // ---------- 📚 recursos: devocionales y material
   function iconoArchivo(m){ return /audio/.test(m)?'🎧':/video/.test(m)?'🎬':/pdf/.test(m)?'📕':/presentation|powerpoint/.test(m)?'📊':/spreadsheet|excel/.test(m)?'📗':/document|word/.test(m)?'📄':/image/.test(m)?'🖼':'📎' }
@@ -1491,6 +1549,7 @@ async function pubDibujar(spec,alto,datos,foto,logos,escala){
       aplicarArranque(r,!previo||r.token!==guardado);
       if(esLider()) revisarNovedades();
       setTimeout(()=>planEnFondo(true),2500);   // deja listo el plan del año: así el calendario cambia de mes al instante
+      setTimeout(usoAbrir,1500); usoMarca('Inicio');
     }catch(e){ cargando(0); if(!previo){ aviso('No se pudo conectar. Revisa tu internet.',true); modoPublico() } }
   })();
 })();
